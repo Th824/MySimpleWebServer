@@ -1,0 +1,30 @@
+{
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "g++ build active file",
+      "command": "/usr/bin/g++",
+      "args": [
+        "-g",
+        "-std=c++11",
+        "Logger_test.cpp",
+        "LogStream.cpp",
+        "LogFile.cpp",
+        "Logger.cpp",
+        "FileUnit.cpp",
+        "AsyncLogger.cpp",
+        "-lpthread",
+        "-o",
+        "a.out"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/base"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ],
+  "version": "2.0.0"
+}
