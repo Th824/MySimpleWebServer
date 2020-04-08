@@ -1,3 +1,6 @@
 *.o
 *.out
 .vscode
+
+# ignore excuteable file
+Server

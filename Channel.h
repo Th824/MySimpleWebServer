@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 #include <iostream>
-#include "../base/noncopyable.h"
+#include "base/noncopyable.h"
 
 class EventLoop;
 

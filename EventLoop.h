@@ -1,10 +1,12 @@
 #pragma once
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <vector>
 #include <memory>
-#include "../base/noncopyable.h"
 #include "Channel.h"
 #include "Epoll.h"
+#include "base/noncopyable.h"
 
 class EventLoop : noncopyable {
 public:
@@ -15,6 +17,11 @@ public:
   // 始终处于loop的状态，因此需要定义一些可以插入loop的函数
   void loop();
   void quit();
+
+  bool isInLoopThread() const;
+  void runInLoop(Functor &&cb);
+  void queueInLoop(Functor &&cb);
+  void assertInLoopThread();
 
   // 向外暴露Epoll的接口，因为epoll实例属于EventLoop
   void removefromPoller(SP_Channel channel) {
@@ -31,8 +38,20 @@ private:
   bool looping_;  // 表示是否在循环中
   bool quit_;
   bool eventHandling_;
-  bool callingPendingFunctors_;
+  // 创建了EventLoop的线程就是IO线程
+  const std::thread::id threadId_;
+  std::mutex mutex_;
 
+  // callingPendingFunctors_和wakeupFd_互相配合，实现回调函数的及时调用
+  int wakeupFd_;
+  bool callingPendingFunctors_;
+  SP_Channel pwakeupChannel_;
   std::shared_ptr<Epoll> poller_;
   std::vector<Functor> pendingFunctors_;
+
+  void wakeup();
+  void doPendingFunctors();
+  // wakeupChannel的回调函数
+  void handleRead();
+  void handleConn();
 };

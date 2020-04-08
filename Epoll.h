@@ -5,7 +5,7 @@
 # include <sys/epoll.h>
 # include <memory>
 # include "Channel.h"
-# include "../base/noncopyable.h"
+# include "base/noncopyable.h"
 
 class Epoll : noncopyable {
 public:
