@@ -24,13 +24,13 @@ public:
   void assertInLoopThread();
 
   // 向外暴露Epoll的接口，因为epoll实例属于EventLoop
-  void removefromPoller(SP_Channel channel) {
+  void removefromPoller(Channel* channel) {
     poller_->epoll_del(channel);
   }
-  void updatePoller(SP_Channel channel, int timeout = 0) {
+  void updatePoller(Channel* channel, int timeout = 0) {
     poller_->epoll_mod(channel, timeout);
   }
-  void addToPoller(SP_Channel channel, int timeout = 0) {
+  void addToPoller(Channel* channel, int timeout = 0) {
     poller_->epoll_add(channel, timeout);
   }
 private:
@@ -45,8 +45,8 @@ private:
   // callingPendingFunctors_和wakeupFd_互相配合，实现回调函数的及时调用
   int wakeupFd_;
   bool callingPendingFunctors_;
-  SP_Channel pwakeupChannel_;
-  std::shared_ptr<Epoll> poller_;
+  std::unique_ptr<Channel> pwakeupChannel_;
+  std::unique_ptr<Epoll> poller_;
   std::vector<Functor> pendingFunctors_;
 
   void wakeup();

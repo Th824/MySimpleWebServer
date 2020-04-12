@@ -29,7 +29,7 @@ EventLoop::EventLoop() :
     pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
     pwakeupChannel_->setReadHandler(std::bind(&EventLoop::handleRead, this));
     pwakeupChannel_->setConnHandler(std::bind(&EventLoop::handleConn, this));
-    addToPoller(pwakeupChannel_, 0);
+    pwakeupChannel_->addToEpoll();
 }
 
 void EventLoop::loop() {
@@ -37,7 +37,7 @@ void EventLoop::loop() {
   assert(isInLoopThread());
   looping_ = true;
   quit_ = false;
-  std::vector<SP_Channel> ret;
+  std::vector<Channel*> ret;
   while (!quit_) {
     ret.clear();
     // 在这里阻塞直到有事件产生
@@ -69,8 +69,10 @@ bool EventLoop::isInLoopThread() const {
 void EventLoop::runInLoop(Functor&& cb) {
   // 如果由IO线程调用，那么直接执行函数，否则将其加入到回调队列中等待执行
   if (isInLoopThread()) {
+    std::cout << "here" << std::endl;
     cb();
   } else {
+    std::cout << "here2" << std::endl;
     queueInLoop(std::move(cb));
   }
 }
@@ -125,5 +127,5 @@ void EventLoop::handleRead() {
 }
 
 void EventLoop::handleConn() {
-  updatePoller(pwakeupChannel_, 0);
+  pwakeupChannel_->update();
 }

@@ -2,7 +2,7 @@
 # include "EventLoop.h"
 
 int main() {
-  int port = 30000;
+  unsigned short port = 30000;
   EventLoop *loop = new EventLoop();
   // 主进程也是一个循环，且只监听了一个事件，就是连接事件
   Server server(port, loop);

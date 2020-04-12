@@ -10,23 +10,22 @@
 
 const __uint32_t DEFAULT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 
-// 临时的回调函数，调试回调函数的正常调用
-void readCalllback() {
-  std::cout << "handle read" << std::endl;
+void defaultConnCallback(const TcpConnectionPtr& conn) {
+  std::cout << conn->srcAddr() << ":" << conn->srcPort() << " -> "
+            << conn->dstAddr() << ":" << conn->dstPort() << " is "
+            << ((conn->connected()) ? "UP" : "DOWN") << std::endl;
 }
 
-void writeCallback() {
-  std::cout << "handle write" << std::endl;
+void defaultMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
+  std::string message = buf->retrieveAllAsString();
+  std::cout << "read a message: " << message << std::endl;
 }
 
-void connCallback() {
-  std::cout << "handle conn" << std::endl;
-}
 
-Server::Server(int port, EventLoop *loop) : 
-  port_(port),
+Server::Server(unsigned short port, EventLoop *loop) : 
+  srcPort_(port),
   // 根据端口号初始化acceptedFd
-  listenFd_(socket_bind_listen(port_)),
+  listenFd_(socket_bind_listen(srcPort_)),
   loop_(loop),
   acceptChannel_(new Channel(loop_, listenFd_)),
   started_(false),
@@ -38,15 +37,11 @@ void Server::start() {
   pool_->start();
   acceptChannel_->setEvents(DEFAULT_EVENT);
   acceptChannel_->setReadHandler(std::bind(&Server::handleNewConn, this));
-  acceptChannel_->setConnHandler(std::bind(&Server::handleThisConn, this));
+  // acceptChannel_->setConnHandler(std::bind(&Server::handleThisConn, this));
   // 将listenFd_加入到epoll中
   loop_->addToPoller(acceptChannel_, 0);
   started_ = true;
   std::cout << "Start the server successfully" << std::endl;
-}
-
-void Server::handleThisConn() {
-  loop_->updatePoller(acceptChannel_);
 }
 
 void Server::handleNewConn() {
@@ -58,13 +53,14 @@ void Server::handleNewConn() {
   memset(&clientAddr, 0, sizeof(struct sockaddr_in));
   socklen_t addrLen = sizeof(clientAddr);
   int acceptFd = 0;
-  // 每一次处理新连接都是处理到没有新连接为止
+  // 每一次处理新连接都是处理到没有新连接为止(读到EAGAIN)
   while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr), &addrLen)) > 0) {
     std::cout << "Accept a new connection successfully" << std::endl;
     // 日志处理，将连接记录到日志中
     std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) << ":"
               << ntohs(clientAddr.sin_port) << std::endl;
-    
+    std::string dstAddr(inet_ntoa(clientAddr.sin_addr));
+    unsigned short dstPort = ntohs(clientAddr.sin_port);
     // 超出最大连接数
     if (acceptFd >= MAXFDS) {
       close(acceptFd);
@@ -82,16 +78,27 @@ void Server::handleNewConn() {
     EventLoop *loop = pool_->getNextLoop();
     // 根据acceptFd建立Channel，将Channel加入唯一的Epoll中，直接操作Channel
     // 在创建了一个关于acceptChannel后，将其添加到选定的subReactor线程中
-    SP_Channel acceptFdChannel(new Channel(loop_, acceptFd));
-    acceptFdChannel->setEvents(DEFAULT_EVENT);
-    acceptFdChannel->setReadHandler(std::bind(&readCalllback));
-    acceptFdChannel->setWriteHandler(std::bind(&writeCallback));
-    acceptFdChannel->setConnHandler(std::bind(&connCallback));
-    // 使用queueInLoop避免了epoll在wait中阻塞
-    loop->queueInLoop([loop, acceptFdChannel]() {
-      loop->addToPoller(acceptFdChannel);
-    });
+    // 根据acceptFd建立TcpConnection，并将其保存在Server的connections中
+    std::string connectionName = std::string("connection") + std::to_string(count_++);
+    TcpConnectionPtr connection(new TcpConnection(loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
+    assert(connections_.find(connectionName) == connections_.end());
+    connections_[connectionName] = connection;
+    connection->setMessageCallback(defaultMessageCallback);
+    connection->setConnCallback(defaultConnCallback);
+    connection->setCloseCallback(std::bind(&Server::removeConnection, this, connection));
+    loop->runInLoop(std::bind(&TcpConnection::connectionEstablished, connection));
   }
-  // 因为设置了ONESHOT标志所以需要再次设置
+  // 因为设置了ONESHOT标志所以需要再次设置，需不需要再次设置ONESHOT呢？
   acceptChannel_->setEvents(EPOLLIN| EPOLLET);
+}
+
+void Server::removeConnection(const TcpConnectionPtr& conn) {
+  loop_->runInLoop(std::bind(&Server::removeConnectionInLoop, this, conn));
+}
+
+void Server::removeConnectionInLoop(const TcpConnectionPtr& conn) {
+  loop_->assertInLoopThread();
+  connections_.erase(conn->name());
+  EventLoop* loop = conn->loop();
+  loop->queueInLoop(std::bind(&TcpConnection::connectDestroyed, conn));
 }
