@@ -69,10 +69,10 @@ bool EventLoop::isInLoopThread() const {
 void EventLoop::runInLoop(Functor&& cb) {
   // 如果由IO线程调用，那么直接执行函数，否则将其加入到回调队列中等待执行
   if (isInLoopThread()) {
-    std::cout << "here" << std::endl;
+    // std::cout << "here" << std::endl;
     cb();
   } else {
-    std::cout << "here2" << std::endl;
+    // std::cout << "here2" << std::endl;
     queueInLoop(std::move(cb));
   }
 }

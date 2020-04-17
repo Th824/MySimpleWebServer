@@ -6,6 +6,8 @@
 # include "Channel.h"
 # include "EventLoopThreadPool.h"
 # include "TcpConnection.h"
+# include "HttPRequest.h"
+# include "HttpRespond.h"
 
 // 服务器类
 class Server : noncopyable {

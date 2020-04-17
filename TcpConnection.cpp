@@ -9,7 +9,8 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd, s
   dstAddr_(dstAddr),
   srcPort_(srcPort),
   dstPort_(dstPort),
-  state_(kConnecting) {
+  state_(kConnecting),
+  httpRequest_(new HttpRequest) {
   // 对下层对应的channel设置回调事件
   channel_->setReadHandler(std::bind(&TcpConnection::handleRead, this));
   channel_->setWriteHandler(std::bind(&TcpConnection::handleWrite, this));

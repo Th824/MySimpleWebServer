@@ -4,135 +4,16 @@
 # include "EventLoop.h"
 # include "Channel.h"
 # include "EventLoopThreadPool.h"
+# include "Buffer.h"
+# include "HttPRequest.h"
 # include <memory>
 # include <cassert>
 # include <sys/uio.h>
 # include <string>
 # include <unistd.h>
 # include <functional>
-#include <sys/socket.h>
-
-// 应用层缓冲区
-// 应用只需要将数据写到Buffer，并且将数据从Buffer读出，而避免了
-// 从fd读写数据而造成阻塞使得无法快速回到loop
-class Buffer {
-public:
-  static const size_t kCheapPrepend = 8;
-  static const size_t kInitialSize = 1024;
-  explicit Buffer(size_t initialSize = kInitialSize)
-    : buffer_(kCheapPrepend + initialSize),
-      readIndex_(kCheapPrepend),
-      writeIndex_(kCheapPrepend) {
-    
-  }
-
-  size_t readableBytes() const {return writeIndex_ - readIndex_;}
-  size_t writableBytes() const {return buffer_.size() - writeIndex_;}
-  size_t prependableBytes() const {return readIndex_;}
-  const char* peek() const {return begin() + readIndex_;}
-
-  void retrieve(size_t len) {
-    assert(len <= readableBytes());
-    if (len < readableBytes()) {
-      readIndex_ += len;
-    } else {
-      retrieveAll();
-    }
-  }
-
-  void retrieveAll() {
-    readIndex_ = writeIndex_ = kCheapPrepend;
-  }
-
-  std::string retrieveAllAsString() {
-    return retrieveAsString(readableBytes());
-  }
-
-  std::string retrieveAsString(size_t len) {
-    assert(len <= readableBytes());
-    std::string result(peek(), len);
-    retrieve(len);
-    return result;
-  }
-
-  void append(const char* data, size_t len) {
-    ensureWritableBytes(len);
-    std::copy(data, data + len, beginWrite());
-    hasWritten(len);
-  }
-
-  void append(const void* data, size_t len) {
-    append(static_cast<const char*>(data), len);
-  }
-
-  // 在写入数据前需确保vector足够大来存储待写入的数据
-  // 如果vector空间不够则申请空间
-  void ensureWritableBytes(size_t len) {
-    if (writableBytes() < len) {
-      makeSpace(len);
-    }
-    assert(writableBytes() >= len);
-  }
-  char* beginWrite() {return begin() + writeIndex_;}
-  void hasWritten(size_t len) {
-    assert(len <= writableBytes());
-    writeIndex_ += len;
-  }
-  void unwrite(size_t len) {
-    assert(len <= readableBytes());
-    writeIndex_ -= len;
-  }
-
-  void prepend(const void* data, size_t len) {
-    assert(len <= prependableBytes());
-    readIndex_ -= len;
-    const char* d = static_cast<const char*>(data);
-    std::copy(d, d + len, begin() + readIndex_);
-  }
-
-  ssize_t readFd(int fd, int* savedErrno) {
-    char extrabuf[65536];
-    struct iovec vec[2];
-    const size_t writable = writableBytes();
-    vec[0].iov_base = begin() + writeIndex_;
-    vec[0].iov_len = writable;
-    vec[1].iov_base = extrabuf;
-    vec[1].iov_len = sizeof(extrabuf);
-
-    const int iovcnt = (writable < sizeof(extrabuf))? 2 : 1;
-    const ssize_t n = readv(fd, vec, iovcnt);
-    if (n < 0) {
-      *savedErrno = errno;
-    } else if (n <= writable) {
-      writeIndex_ += n;
-    } else {
-      writeIndex_ = buffer_.size();
-      append(extrabuf, n - writable);
-    }
-    return n;
-  }
-private:
-  char* begin() {return &*buffer_.begin();}
-  const char* begin() const {return &*buffer_.begin();}
-
-  void makeSpace(size_t len) {
-    // 如果空间不足，可用空间包括前面的prepend和写指针后面的大小之和
-    if (writableBytes() + prependableBytes() < len + kCheapPrepend) {
-      buffer_.resize(writeIndex_ + len);
-    } else {
-      // 空间足够则将数据往前移动到kCheapPrepend
-      assert(kCheapPrepend < readIndex_);
-      size_t readable = readableBytes();
-      std::copy(begin() + readIndex_, begin() + writeIndex_, begin() + kCheapPrepend);
-      readIndex_ = kCheapPrepend;
-      writeIndex_ = readIndex_ + readable;
-      assert(readable == readableBytes());
-    }
-  }
-  std::vector<char> buffer_;
-  size_t readIndex_;
-  size_t writeIndex_;
-};
+# include <algorithm>
+# include <sys/socket.h>
 
 // 定义一次TCP连接，顶层应用只需要传入回调函数即可
 class TcpConnection : noncopyable, public std::enable_shared_from_this<TcpConnection> {
@@ -246,7 +127,9 @@ public:
   unsigned short dstPort() const {return dstPort_;}
   std::string name() const {return name_;}
   EventLoop* loop() const {return loop_;}
+  std::shared_ptr<HttpRequest> httpRequest() const {return httpRequest_;}
 private:
+  std::shared_ptr<HttpRequest> httpRequest_;
   // 表示当前状态
   State state_;
   // using readCallback = std::function<void (const TcpConnectionPtr&)>;
@@ -274,13 +157,13 @@ private:
   void handleRead() {
     loop_->assertInLoopThread();
     int savedErrno = 0;
-    // inputBuffer_从socket中读取，读到多少算多少，不阻塞
+    // inputBuffer_从socket中读取，读到EAGAIN为止
     ssize_t n = inputBuffer_.readFd(channel_->getFd(), &savedErrno);
     if (n > 0) {
       // 如果取到数据，调用向上应用层的回调
       messageCallback_(shared_from_this(), &inputBuffer_);
     } else if (n == 0) {
-      // 没有读取到数据，说明对端关闭了TCP连接，调用处理关闭连接
+      // 在对端发送了FIN后，read的返回值是0，此时调用关闭回调函数
       handleClose();
     } else {
       errno = savedErrno;

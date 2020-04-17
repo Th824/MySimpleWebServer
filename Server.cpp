@@ -21,6 +21,18 @@ void defaultMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
   std::cout << "read a message: " << message << std::endl;
 }
 
+void httpMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
+  std::shared_ptr<HttpRequest> httpRequest = conn->httpRequest();
+  httpRequest->parseRequest(buf);
+  if (httpRequest->state() == "Done") {
+    HttpRespond httpRespond;
+    httpRespond.setStateCode("200");
+    httpRespond.setBody("hello world");
+    httpRespond.setContentLength(11);
+    conn->send(httpRespond.generateRespond());
+    httpRequest->reset(); 
+  }
+}
 
 Server::Server(unsigned short port, EventLoop *loop) : 
   srcPort_(port),
@@ -55,10 +67,10 @@ void Server::handleNewConn() {
   int acceptFd = 0;
   // 每一次处理新连接都是处理到没有新连接为止(读到EAGAIN)
   while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr), &addrLen)) > 0) {
-    std::cout << "Accept a new connection successfully" << std::endl;
-    // 日志处理，将连接记录到日志中
-    std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) << ":"
-              << ntohs(clientAddr.sin_port) << std::endl;
+    // std::cout << "Accept a new connection successfully" << std::endl;
+    // // 日志处理，将连接记录到日志中
+    // std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) << ":"
+    //           << ntohs(clientAddr.sin_port) << std::endl;
     std::string dstAddr(inet_ntoa(clientAddr.sin_addr));
     unsigned short dstPort = ntohs(clientAddr.sin_port);
     // 超出最大连接数
@@ -83,13 +95,14 @@ void Server::handleNewConn() {
     TcpConnectionPtr connection(new TcpConnection(loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());
     connections_[connectionName] = connection;
-    connection->setMessageCallback(defaultMessageCallback);
+    connection->setMessageCallback(httpMessageCallback);
     connection->setConnCallback(defaultConnCallback);
     connection->setCloseCallback(std::bind(&Server::removeConnection, this, connection));
     loop->runInLoop(std::bind(&TcpConnection::connectionEstablished, connection));
   }
   // 因为设置了ONESHOT标志所以需要再次设置，需不需要再次设置ONESHOT呢？
   acceptChannel_->setEvents(EPOLLIN| EPOLLET);
+  acceptChannel_->update();
 }
 
 void Server::removeConnection(const TcpConnectionPtr& conn) {

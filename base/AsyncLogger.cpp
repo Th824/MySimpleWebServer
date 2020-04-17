@@ -10,6 +10,7 @@ void AsyncLogger::append(const std::string &logline) {
     if (nextBuffer_) {
       currentBuffer_ = std::move(nextBuffer_);
     } else {
+      // 很少发生这种情况
       currentBuffer_.reset(new Buffer);
     }
     currentBuffer_->append(logline);

@@ -65,7 +65,7 @@ std::vector<Channel*> Epoll::poll() {
       Channel* curReq = fd2chan_[fd];
 
       if (curReq) {
-        std::cout << "The req is valid" << std::endl;
+        // std::cout << "The req is valid" << std::endl;
         curReq->setRevents(events_[i].events);
         curReq->setEvents(0);
         reqData.push_back(curReq);

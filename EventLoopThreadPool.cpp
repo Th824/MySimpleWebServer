@@ -11,6 +11,7 @@ EventLoopThreadPool::EventLoopThreadPool(EventLoop* baseLoop, int numThreads)
 }
 
 EventLoopThreadPool::~EventLoopThreadPool() {
+  // TODO join所有的线程，删除对应的EventLoop
   std::cout << "delete thread pool" << std::endl;
 }
 
