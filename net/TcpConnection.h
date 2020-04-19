@@ -5,7 +5,8 @@
 # include "Channel.h"
 # include "EventLoopThreadPool.h"
 # include "Buffer.h"
-# include "HttPRequest.h"
+// # include "HttpRequest.h" // todo using context to replace this function
+# include "application/http_server/HttpRequest.h"
 # include <memory>
 # include <cassert>
 # include <sys/uio.h>
