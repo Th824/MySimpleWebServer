@@ -1,5 +1,16 @@
 # Readme
 
+## How to build
+
+``` bash
+# project directory 
+mkdir -p build && cd build
+# generate makefile
+cmake ..
+# build porject
+make 
+```
+
 ## 简介
 
 
@@ -17,7 +28,9 @@
   - [ ] 日志类的压力测试（进行C/IO和C++/IO的对比）
   - [ ] 服务器的压力测试
 - [ ] 对线程库的封装（包括同步原语）
+- [ ] udp 支持
 - [ ] 异步日志可否使用无锁队列实现（抽象成一个消息队列，前端为生产者，后端为消费者）
+- [ ] 线程池调度策略的支持
 
 ## 项目目录结构
 

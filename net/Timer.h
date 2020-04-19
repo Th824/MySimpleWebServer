@@ -18,6 +18,13 @@ public:
       sequence_(s_numCreated_++) {}
     
     void run() const {callback_();}
+    Timestamp expiration() const {return expiration_;}
+    bool repeat() const {return repeat_;}
+    std::int64_t sequence() const {return sequence_;}
+
+    void restart(Timestamp now);
+
+    static std::int64_t numCreated() {return s_numCreated_;}
 private:
   const TimerCallback callback_;
   Timestamp expiration_;  // 定义过期的时间

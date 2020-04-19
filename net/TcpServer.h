@@ -1,4 +1,4 @@
-#pragma once
+# pragma once
 # include <unordered_map>
 # include <string>
 # include "base/noncopyable.h"
@@ -6,24 +6,24 @@
 # include "net/Channel.h"
 # include "net/EventLoopThreadPool.h"
 # include "net/TcpConnection.h"
-# include "HttpRequest.h"
-# include "HttpRespond.h"
+// # include "HttpRequest.h"
+// # include "HttpRespond.h"
 
-// 服务器类
-class Server : noncopyable {
+// Tcp传输层服务器类，只需要向应用层提供onMessage和onConnection两个回调函数
+class TcpServer : noncopyable {
 private:
   using messageCallback = std::function<void (const TcpConnectionPtr&, Buffer*)>;
   using connCallback = std::function<void (const TcpConnectionPtr&)>;
 public:
-  Server(unsigned short srcPort, EventLoop *loop);
-  ~Server(){};
+  TcpServer(unsigned short srcPort, EventLoop *loop);
+  ~TcpServer(){};
   // 这个是针对新连接的回调函数
   void handleNewConn();
   // 针对TcpConnection的可读回调函数
   void handleMessage();
 
-  void setConnCallback(const connCallback& cb) {connCallback_ = cb;}
-  void setMessageCallback(const messageCallback& cb) {messageCallback_ = cb;}
+  void setConnCallback(const connCallback& cb);
+  void setMessageCallback(const messageCallback& cb);
   void start();
 
   void removeConnection(const TcpConnectionPtr& conn);
@@ -45,5 +45,6 @@ private:
   messageCallback messageCallback_;
 
 private:
+  // 服务器支持的最大连接数
   static const int MAXFDS = 100000;
 };

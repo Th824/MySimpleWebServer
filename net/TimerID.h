@@ -1,5 +1,5 @@
 // 对Timer和sequence的封装
-
+# pragma once
 # include "base/copyable.h"
 # include <cinttypes>
 
