@@ -130,6 +130,7 @@ public:
   EventLoop* loop() const {return loop_;}
   std::shared_ptr<HttpRequest> httpRequest() const {return httpRequest_;}
 private:
+  // 一个TcpConnection中，对应的是一个
   std::shared_ptr<HttpRequest> httpRequest_;
   // 表示当前状态
   State state_;

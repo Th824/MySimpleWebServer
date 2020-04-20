@@ -29,6 +29,7 @@ void httpMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
     httpRespond.setStateCode("200");
     httpRespond.setBody("hello world");
     httpRespond.setContentLength(11);
+    // 异步发送
     conn->send(httpRespond.generateRespond());
     httpRequest->reset(); 
   }

@@ -5,6 +5,8 @@
 
 class Buffer;
 class TcpConnection;
+class HttpRequest;
+class HttpRespond;
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
 using connCallback = std::function<void(const TcpConnectionPtr &)>;
@@ -14,3 +16,5 @@ using messageCallback = std::function<void(const TcpConnectionPtr &, Buffer *)>;
 using closeCallback = std::function<void(const TcpConnectionPtr &)>;
 
 using TimerCallback = std::function<void()>;
+
+using HttpHandler = std::function<void(const HttpRequest &, HttpRespond &)>;
