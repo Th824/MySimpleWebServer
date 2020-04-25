@@ -2,9 +2,13 @@
 # include <iostream>
 # include <sys/socket.h>
 # include <netinet/in.h>
-#include <netinet/tcp.h>
+# include <netinet/tcp.h>
 # include <sys/types.h>
 # include <fcntl.h>
+# include <bits/stat.h>
+# include <sys/stat.h>
+# include <assert.h>
+# include <regex>
 # include "utility.h"
 
 int socket_bind_listen(int port) {
@@ -191,4 +195,96 @@ ssize_t writen(int fd, std::string &sbuff) {
   else
     sbuff = sbuff.substr(writeSum);
   return writeSum;
+}
+
+bool isDir(const std::string &path) {
+  struct stat st;
+  return stat(path.c_str(), &st) >= 0 && S_ISDIR(st.st_mode);
+}
+
+bool isFile(const std::string &path) {
+  struct stat st;
+  return stat(path.c_str(), &st) >= 0 && S_ISREG(st.st_mode);
+}
+
+bool isValidPath(const std::string &path) {
+  size_t level = 0;
+  size_t i = 0;
+
+  // Skip slash
+  while (i < path.size() && path[i] == '/') {
+    i++;
+  }
+
+  while (i < path.size()) {
+    // Read component
+    auto beg = i;
+    while (i < path.size() && path[i] != '/') {
+      i++;
+    }
+
+    auto len = i - beg;
+    assert(len > 0);
+
+    if (!path.compare(beg, len, ".")) {
+      ;
+    } else if (!path.compare(beg, len, "..")) {
+      if (level == 0) { return false; }
+      level--;
+    } else {
+      level++;
+    }
+
+    // Skip slash
+    while (i < path.size() && path[i] == '/') {
+      i++;
+    }
+  }
+
+  return true;
+}
+
+std::string fileExtension(const std::string &path) {
+  std::smatch m;
+  static auto re = std::regex("\\.([a-zA-Z0-9]+)$");
+  if (std::regex_search(path, m, re)) { return m[1].str(); }
+  return std::string();
+}
+
+std::string findContentType(const std::string& path) {
+  auto ext = fileExtension(path);
+  if (ext == "txt") {
+    return "text/plain";
+  } else if (ext == "html" || ext == "htm") {
+    return "text/html";
+  } else if (ext == "css") {
+    return "text/css";
+  } else if (ext == "jpeg" || ext == "jpg") {
+    return "image/jpg";
+  } else if (ext == "png") {
+    return "image/png";
+  } else if (ext == "gif") {
+    return "image/gif";
+  } else if (ext == "svg") {
+    return "image/svg+xml";
+  } else if (ext == "ico") {
+    return "image/x-icon";
+  } else if (ext == "json") {
+    return "application/json";
+  } else if (ext == "pdf") {
+    return "application/pdf";
+  } else if (ext == "js") {
+    return "application/javascript";
+  } else if (ext == "wasm") {
+    return "application/wasm";
+  } else if (ext == "xml") {
+    return "application/xml";
+  } else if (ext == "xhtml") {
+    return "application/xhtml+xml";
+  } else if (ext == "woff2") {
+    return "font/woff2";
+  } else if (ext == "woff") {
+    return "font/woff";
+  }
+  return "";
 }

@@ -19,15 +19,12 @@ void AsyncLogger::append(const std::string &logline) {
 }
 
 void AsyncLogger::threadFunc() {
-  std::cout << "run thread function" << std::endl;
   assert(running_ == true);
-  std::cout << "run thread function1" << std::endl;
   LogFile output(filename_);
   BufferPtr newBuffer1(new Buffer);
   BufferPtr newBuffer2(new Buffer);
   BufferVector buffersToWrite;
   buffersToWrite.reserve(16);
-  std::cout << "run thread function2" << std::endl;
   bool flag = true;
   while (running_) {
     if (flag) {

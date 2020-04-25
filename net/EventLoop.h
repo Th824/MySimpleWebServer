@@ -7,6 +7,7 @@
 #include "Channel.h"
 #include "Epoll.h"
 #include "base/noncopyable.h"
+#include "base/utility.h"
 
 class EventLoop : noncopyable {
 public:
@@ -37,7 +38,7 @@ private:
 // 状态变量
   bool looping_;  // 表示是否在循环中
   bool quit_;
-  bool eventHandling_;
+//  bool eventHandling_;
   // 创建了EventLoop的线程就是IO线程
   const std::thread::id threadId_;
   std::mutex mutex_;

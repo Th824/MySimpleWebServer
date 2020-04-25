@@ -1,4 +1,7 @@
 # pragma once
+# include <sys/types.h>
+# include <string>
+# include <iostream>
 
 // 根据端口号建立socket，并返回属于该socket的文件描述符
 int socket_bind_listen(int port);
@@ -19,3 +22,10 @@ ssize_t readn(int fd, std::string &inBuffer, bool &zero);
 ssize_t readn(int fd, std::string &inBuffer);
 ssize_t writen(int fd, void *buff, size_t n);
 ssize_t writen(int fd, std::string &sbuff);
+
+bool isDir(const std::string& path);
+bool isFile(const std::string& path);
+bool isValidPath(const std::string &path);
+
+std::string fileExtension(const std::string &path);
+std::string findContentType(const std::string& path);

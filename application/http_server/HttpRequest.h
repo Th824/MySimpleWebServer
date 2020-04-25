@@ -1,34 +1,41 @@
-# pragma once
-# include <vector>
-# include <string>
-# include <unordered_map>
-# include "net/Buffer.h"
+#pragma once
+#include <iostream>
+#include <regex>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "net/Buffer.h"
 
 class HttpRequest {
-private:
-  enum Method {GET, POST, PUT, DELETE, INVALID};
-  enum Version {HTTP10, HTTP11, NONE};
-  enum State {RequestLine, RequestHeader, RequestBody, Done};
-public:
+ private:
+  enum Method { GET, POST, PUT, DELETE, INVALID };
+  enum Version { HTTP10, HTTP11, NONE };
+  enum State { RequestLine, RequestHeader, RequestBody, Done };
+
+ public:
   HttpRequest() : state_(RequestLine) {}
   ~HttpRequest() {}
 
   bool parseRequestLine(const char* begin, const char* end) {
     bool succeed = false;
-    const char *start = begin;
-    const char *space = std::find(start, end, ' ');
-    if (space != end)
-    {
+    const char* start = begin;
+    const char* space = std::find(start, end, ' ');
+    if (space != end) {
       if (!setMethod(start, space)) return succeed;
       start = space + 1;
       space = std::find(start, end, ' ');
-      if (space != end)
-      {
-        if (!setPath(start, space)) return succeed;
+      if (space != end) {
+        const char* question = std::find(start, space, '?');
+        if (question != space) {
+          if (!setPath(start, question)) return succeed;
+          if (!setQuery(question, space)) return succeed;
+        } else {
+          if (!setPath(start, space)) return succeed;
+        }
         start = space + 1;
         succeed = end - start == 8 && std::equal(start, end - 1, "HTTP/1.");
-        if (succeed)
-        {
+        if (succeed) {
           succeed = setVersion(start, end);
         }
       }
@@ -47,9 +54,7 @@ public:
     return succeed;
   }
 
-  bool isEmptyLine(const char* begin, const char* end) {
-    return end == begin;
-  }
+  bool isEmptyLine(const char* begin, const char* end) { return end == begin; }
 
   // 在onMessage中作为回调函数调用，在可读的时候被调用
   bool parseRequest(Buffer* buf) {
@@ -79,7 +84,8 @@ public:
     if (state_ == RequestBody) {
       if (header_.find("Content-Length") != header_.end()) {
         int contentLength = std::stoi(header_["Content-Length"]);
-        if (buf->readableBytes() >= contentLength) {
+        assert(contentLength >= 0);
+        if (buf->readableBytes() >= static_cast<size_t>(contentLength)) {
           // 一般对body的数据没有处理，直接retrieve
           buf->retrieve(contentLength);
         }
@@ -94,6 +100,7 @@ public:
     if (state_ == RequestHeader) return "RequestHeader";
     if (state_ == RequestBody) return "RequestBody";
     if (state_ == Done) return "Done";
+    return "Unknow";
   }
 
   std::string method() const {
@@ -110,9 +117,7 @@ public:
     return "NONE";
   }
 
-  std::string path() const {
-    return path_;
-  }
+  std::string path() const { return path_; }
 
   bool setMethod(const char* begin, const char* end) {
     std::string method(begin, end);
@@ -147,17 +152,32 @@ public:
     return true;
   }
 
+  bool setQuery(const char* begin, const char* end) {
+    query_ = std::string(begin, end);
+    return true;
+  }
+
+  std::string getQuery() const { return query_; }
+
   void reset() {
     header_.clear();
     state_ = RequestLine;
   }
 
-private:
+  friend std::ostream& operator<<(std::ostream& output,
+                                  const HttpRequest& req) {
+    output << req.method() << ' ' << "127.0.0.1:30000" << req.path();
+    return output;
+  }
+
+ private:
   State state_;
   // HTTP请求行的字段
   Method method_;
   Version version_;
+  std::smatch match_;
   std::string path_;
+  std::string query_;
   // HTTP
   std::unordered_map<std::string, std::string> header_;
 };

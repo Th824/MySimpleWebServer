@@ -1,39 +1,56 @@
-# pragma once
-# include <string>
-# include <sstream>
+#pragma once
+#include <sstream>
+#include <string>
+#include <unordered_map>
 
 class HttpRespond {
-public:
+ public:
   HttpRespond() {}
   ~HttpRespond() {}
 
-  void setStateCode(const std::string& stateCode) {
-    stateCode_ = stateCode;
+  void setStateCode(const std::string& stateCode) { stateCode_ = stateCode; }
+
+  void setStatusMessage(const std::string& message) {
+    statusMessage_ = message;
   }
 
-  void setContentLength(const int contentLength) {
-    contentLength_ = contentLength;
-  }
+  void setBody(const std::string& body) { body_ = body; }
 
-  void setBody(const std::string& body) {
-    body_ = body;
+  void setHeader(const std::string& key, const std::string& value) {
+    headers[key] = value;
   }
 
   std::string generateRespond() {
     std::stringstream ss;
-    ss << version_ << ' ' << stateCode_ << "OK" << crlf
-       << "TimeStamp" << crlf
-       << "Content-Type: text/html;charset=utf-8" << crlf
-       << "Content-Length: " << contentLength_ << crlf
-       << crlf
-       << body_;
+    ss << version_ << ' ' << stateCode_ << ' ' << statusMessage_ << crlf;
+    if (closeConnection_) {
+      ss << "Connection: close" << crlf;
+    } else {
+      ss << "Connection: Keep-Alive" << crlf;
+    }
+
+    for (const auto& kv : headers) {
+      ss << kv.first << ": " << kv.second << crlf;
+    }
+    ss << crlf;
+    ss << body_;
     return ss.str();
   }
 
-private:
+  std::string& getBody() { return body_; }
+
+  friend std::ostream& operator<<(std::ostream& output,
+                                  const HttpRespond& res) {
+    output << res.stateCode_ << ' ' << res.statusMessage_;
+    return output;
+  }
+
+ private:
   std::string crlf = "\r\n";
   std::string version_ = "HTTP/1.1";
   std::string stateCode_;
-  int contentLength_;
+  std::string statusMessage_ = "OK";
+  std::unordered_map<std::string, std::string> headers;
+  bool closeConnection_ = false;
   std::string body_;
 };

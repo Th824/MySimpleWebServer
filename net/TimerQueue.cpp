@@ -172,11 +172,6 @@ std::vector<TimerQueue::Entry> TimerQueue::getExpired(Timestamp now) {
   return expired;
 }
 
-// 根据ID移除注册在queue中的timer
-void TimerQueue::cancel(TimerID timerID) {
-  loop_->runInLoop(std::bind(&TimerQueue::cancelInLoop, this, timerID));
-}
-
 bool TimerQueue::insert(Timer* timer) {
   loop_->assertInLoopThread();
   assert(timers_.size() == activeTimers_.size());

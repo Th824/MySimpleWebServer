@@ -1,21 +1,23 @@
-# pragma once
-# include <unordered_map>
-# include <string>
-# include "base/noncopyable.h"
-# include "net/EventLoop.h"
-# include "net/Channel.h"
-# include "net/EventLoopThreadPool.h"
-# include "net/TcpConnection.h"
+#pragma once
+#include <string>
+#include <unordered_map>
+
+#include "base/noncopyable.h"
+#include "net/Channel.h"
+#include "net/EventLoop.h"
+#include "net/EventLoopThreadPool.h"
+#include "net/TcpConnection.h"
 // # include "HttpRequest.h"
 // # include "HttpRespond.h"
 
 // Tcp传输层服务器类，只需要向应用层提供onMessage和onConnection两个回调函数
 class TcpServer : noncopyable {
-private:
-  using messageCallback = std::function<void (const TcpConnectionPtr&, Buffer*)>;
-  using connCallback = std::function<void (const TcpConnectionPtr&)>;
-public:
-  TcpServer(unsigned short srcPort, EventLoop *loop);
+ private:
+  using messageCallback = std::function<void(const TcpConnectionPtr&, Buffer*)>;
+  using connCallback = std::function<void(const TcpConnectionPtr&)>;
+
+ public:
+  TcpServer(unsigned short srcPort, EventLoop* loop);
   ~TcpServer(){};
   // 这个是针对新连接的回调函数
   void handleNewConn();
@@ -29,11 +31,11 @@ public:
   void removeConnection(const TcpConnectionPtr& conn);
   void removeConnectionInLoop(const TcpConnectionPtr& conn);
 
-private:
+ private:
   std::string srcAddr_ = "127.0.0.1";
   unsigned short srcPort_;
   int listenFd_;
-  EventLoop *loop_;
+  EventLoop* loop_;
   std::unique_ptr<EventLoopThreadPool> pool_;
   Channel* acceptChannel_;
   bool started_;
@@ -44,7 +46,7 @@ private:
   connCallback connCallback_;
   messageCallback messageCallback_;
 
-private:
+ private:
   // 服务器支持的最大连接数
   static const int MAXFDS = 100000;
 };

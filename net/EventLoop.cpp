@@ -4,7 +4,6 @@
 # include <sys/eventfd.h>
 # include <sys/epoll.h>
 # include <functional>
-# include "base/utility.h"
 
 // 通过eventfd来实现wakeup，将wakeupFd添加到epoll中，如果需要唤醒，则往
 // wakeupFd中写入数据，这样epoll就能从epoll_wait中返回。
@@ -20,11 +19,11 @@ int createEventfd() {
 EventLoop::EventLoop() : 
   looping_(false),
   quit_(false),
-  poller_(new Epoll()),
+  threadId_(std::this_thread::get_id()),
   wakeupFd_(createEventfd()),
   callingPendingFunctors_(false),
   pwakeupChannel_(new Channel(this, wakeupFd_)),
-  threadId_(std::this_thread::get_id()) {
+  poller_(new Epoll()) {
     // 设置pwakeupChannel
     pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
     pwakeupChannel_->setReadHandler(std::bind(&EventLoop::handleRead, this));
@@ -42,7 +41,7 @@ void EventLoop::loop() {
     ret.clear();
     // 在这里阻塞直到有事件产生
     ret = poller_->poll();
-    std::cout << ret.size() << " events happen" << std::endl;
+    // std::cout << ret.size() << " events happen" << std::endl;
     // 调用有事件产生的Channel的回调函数
     for (auto &it : ret) {
       it->handleEvents();
@@ -111,7 +110,7 @@ void EventLoop::wakeup() {
   uint64_t one = 1;
   // 往wakeupFd中写入数据
   ssize_t n = writen(wakeupFd_, (char*)(&one), sizeof(one));
-  if (n != sizeof one) {
+  if (n != sizeof(one)) {
     std::cout << "EventLoop::wakeup() writes " << n << " bytes instead of 8" << std::endl;
   }
 }
@@ -120,7 +119,7 @@ void EventLoop::handleRead() {
   uint64_t one = 1;
   // 从wakeupFd中读出数据
   ssize_t n = readn(wakeupFd_, &one, sizeof(one));
-  if (n != sizeof one) {
+  if (n != sizeof(one)) {
     std::cout << "EventLoop::handleRead() reads " << n << " bytes instead of 8" << std::endl;
   }
   // 没有设置oneshot的标志的话不用重新设置epoll事件标志

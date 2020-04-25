@@ -2,6 +2,7 @@
 # include <vector>
 # include <mutex>
 # include <set>
+# include <atomic>
 # include "base/Timestamp.h"
 # include "base/Callback.h"
 # include "base/noncopyable.h"

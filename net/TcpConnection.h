@@ -1,34 +1,39 @@
-# pragma once
-# include "base/noncopyable.h"
-# include "base/Callback.h"
-# include "EventLoop.h"
-# include "Channel.h"
-# include "EventLoopThreadPool.h"
-# include "Buffer.h"
+#pragma once
+#include "Buffer.h"
+#include "Channel.h"
+#include "EventLoop.h"
+#include "EventLoopThreadPool.h"
+#include "base/Callback.h"
+#include "base/noncopyable.h"
 // # include "HttpRequest.h" // todo using context to replace this function
-# include "application/http_server/HttpRequest.h"
-# include <memory>
-# include <cassert>
-# include <sys/uio.h>
-# include <string>
-# include <unistd.h>
-# include <functional>
-# include <algorithm>
-# include <sys/socket.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <cassert>
+#include <functional>
+#include <memory>
+#include <string>
+
+#include "application/http_server/HttpRequest.h"
 
 // 定义一次TCP连接，顶层应用只需要传入回调函数即可
-class TcpConnection : noncopyable, public std::enable_shared_from_this<TcpConnection> {
-private:
-  enum State{kDisconnected, kConnecting, kConnected, kDisconnecting};
+class TcpConnection : noncopyable,
+                      public std::enable_shared_from_this<TcpConnection> {
+ private:
+  enum State { kDisconnected, kConnecting, kConnected, kDisconnecting };
 
-public:
-  TcpConnection(EventLoop* loop, const std::string& name, int fd, std::string srcAddr, std::string dstAddr, unsigned short srcPort, unsigned short dstPort);
+ public:
+  TcpConnection(EventLoop* loop, const std::string& name, int fd,
+                std::string srcAddr, std::string dstAddr,
+                unsigned short srcPort, unsigned short dstPort);
   ~TcpConnection() {}
 
   void connectionEstablished();
   void connectDestroyed();
 
-  bool connected() const {return state_ == kConnected;}
+  bool connected() const { return state_ == kConnected; }
 
   void shutdown() {
     // FIXME: use compare and swap
@@ -46,7 +51,7 @@ public:
     // }
   }
 
-  void setState(State state) {state_ = state;}
+  void setState(State state) { state_ = state; }
 
   // send的操作一般都是在回调函数中被调用的
   void send(const void* message, int len) {
@@ -64,14 +69,11 @@ public:
   void send(const std::string& message) {
     send(message.c_str(), message.length());
   }
-  // void send(Buffer *message);
 
   void sendInLoop(const void* data, size_t len) {
     loop_->assertInLoopThread();
     ssize_t nwrote = 0;
     size_t remaining = len;
-    // bool faultError = false;
-    // !channel_->isWriting() &&
     if (outputBuffer_.readableBytes() == 0) {
       // 如果outputBuffer中没有需要写出去的（保证写入socket内核缓冲区的顺序），则可以直接调用write
       nwrote = write(channel_->getFd(), data, len);
@@ -79,7 +81,8 @@ public:
         remaining = len - nwrote;
         // 如果全部写完且有定义写完的回调函数，则调用回调函数
         if (remaining == 0 && writeCompleteCallback_) {
-          loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
+          loop_->queueInLoop(
+              std::bind(writeCompleteCallback_, shared_from_this()));
         }
       } else {
         nwrote = 0;
@@ -90,16 +93,13 @@ public:
     assert(remaining <= len);
     // 将没有成功发送出去的添加到outputBuffer中
     if (remaining > 0) {
-      size_t oldLen = outputBuffer_.readableBytes();
+      // size_t oldLen = outputBuffer_.readableBytes();
       outputBuffer_.append(static_cast<const char*>(data) + nwrote, remaining);
-      // if (!channel_->isWriting()) {
-      //   channel_->enableWriting();
-      // }
     }
   }
 
   const std::string getState() const {
-    switch(state_) {
+    switch (state_) {
       case kDisconnected:
         return "kDisconnected";
       case kConnected:
@@ -114,24 +114,25 @@ public:
   }
 
   // 这三个回调函数应该由应用程序传入定义，不同应用层协议（不同应用）应该传入不同的回调函数
-  void setConnCallback(const connCallback& cb) {connCallback_ = cb;}
-  void setMessageCallback(const messageCallback& cb) {messageCallback_ = cb;}
-  void setCloseCallback(const closeCallback& cb) {closeCallback_ = cb;}
-  void setWriteCompleteCallback(const writeCompleteCallback& cb) {writeCompleteCallback_ = cb;}
+  void setConnCallback(const connCallback& cb) { connCallback_ = cb; }
+  void setMessageCallback(const messageCallback& cb) { messageCallback_ = cb; }
+  void setCloseCallback(const closeCallback& cb) { closeCallback_ = cb; }
+  void setWriteCompleteCallback(const writeCompleteCallback& cb) {
+    writeCompleteCallback_ = cb;
+  }
 
-  Buffer* inputBuffer() {return &inputBuffer_;}
-  Buffer* outputBuffer() {return &outputBuffer_;}
+  Buffer* inputBuffer() { return &inputBuffer_; }
+  Buffer* outputBuffer() { return &outputBuffer_; }
 
-  std::string srcAddr() const {return srcAddr_;}
-  std::string dstAddr() const {return dstAddr_;}
-  unsigned short srcPort() const {return srcPort_;}
-  unsigned short dstPort() const {return dstPort_;}
-  std::string name() const {return name_;}
-  EventLoop* loop() const {return loop_;}
-  std::shared_ptr<HttpRequest> httpRequest() const {return httpRequest_;}
-private:
-  // 一个TcpConnection中，对应的是一个
-  std::shared_ptr<HttpRequest> httpRequest_;
+  std::string srcAddr() const { return srcAddr_; }
+  std::string dstAddr() const { return dstAddr_; }
+  unsigned short srcPort() const { return srcPort_; }
+  unsigned short dstPort() const { return dstPort_; }
+  std::string name() const { return name_; }
+  EventLoop* loop() const { return loop_; }
+  std::shared_ptr<HttpRequest> httpRequest() const { return httpRequest_; }
+
+ private:
   // 表示当前状态
   State state_;
   // using readCallback = std::function<void (const TcpConnectionPtr&)>;
@@ -146,12 +147,14 @@ private:
   Buffer inputBuffer_, outputBuffer_;
   std::unique_ptr<Channel> channel_;
   // 该连接所属的EventLoop/IO线程
-  EventLoop *loop_;
+  EventLoop* loop_;
   // 回调函数
   connCallback connCallback_;
   writeCompleteCallback writeCompleteCallback_;
   messageCallback messageCallback_;
   closeCallback closeCallback_;
+  // 对应当前Tcp连接正在处理的http请求
+  std::shared_ptr<HttpRequest> httpRequest_;
 
   // 以下四个函数都是channel的回调函数，通过设置这四个函数，在不同的事件发生
   // 的时候调用不同的回调函数
@@ -169,19 +172,21 @@ private:
       handleClose();
     } else {
       errno = savedErrno;
-      std::cout << "TcpConnection::handleRead";
+      // std::cout << "TcpConnection::handleRead";
       handleError();
     }
   }
   // 将数据写到socket中，最可能发生阻塞的地方
   void handleWrite() {
     loop_->assertInLoopThread();
-    ssize_t n = write(channel_->getFd(), outputBuffer_.peek(), outputBuffer_.readableBytes());
+    ssize_t n = write(channel_->getFd(), outputBuffer_.peek(),
+                      outputBuffer_.readableBytes());
     if (n > 0) {
       outputBuffer_.retrieve(n);
       if (outputBuffer_.readableBytes() == 0) {
         if (writeCompleteCallback_) {
-          loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
+          loop_->queueInLoop(
+              std::bind(writeCompleteCallback_, shared_from_this()));
         }
         // 这里主要是解决调用关闭连接后缓冲区仍然有数据待发送的问题
         if (state_ == kDisconnecting) {
@@ -189,7 +194,7 @@ private:
         }
       }
     } else {
-      std::cout << "TcpConnection::handleWrite" << std::endl;
+      // std::cout << "TcpConnection::handleWrite" << std::endl;
     }
   }
   void handleClose() {
@@ -203,7 +208,7 @@ private:
     closeCallback_(guardThis);
   }
   void handleError() {
-    std::cout << "TcpConnection::handleError" << std::endl;
+    // std::cout << "TcpConnection::handleError" << std::endl;
   }
 };
 

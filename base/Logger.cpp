@@ -1,6 +1,8 @@
-# include "Logger.h"
-# include "AsyncLogger.h"
-# include <sys/time.h>
+#include "Logger.h"
+
+#include <sys/time.h>
+
+#include "AsyncLogger.h"
 
 // static AsyncLogger *AsyncLogger_;
 std::once_flag Logger::once_control;
@@ -19,9 +21,7 @@ void Logger::output(const std::string& msg) {
 }
 
 Logger::Impl::Impl(const std::string& fileName, int line)
- : stream_(),
-   line_(line),
-   basename_(fileName) {
+    : stream_(), line_(line), basename_(fileName) {
   formatTime();
 }
 
@@ -31,12 +31,13 @@ void Logger::Impl::formatTime() {
   char str_t[26] = {0};
   gettimeofday(&tv, NULL);
   time = tv.tv_sec;
-  struct tm *p_time = localtime(&time);
+  struct tm* p_time = localtime(&time);
   strftime(str_t, 26, "%Y-%m-%d %H:%M:%S ", p_time);
   stream_ << str_t;
 }
 
 Logger::~Logger() {
+  // 进行格式化
   impl_.stream_ << " -- " << impl_.basename_ << ":" << impl_.line_ << '\n';
   const LogStream::Buffer& buf(stream().buffer());
   output(buf.data());

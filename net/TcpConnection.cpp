@@ -1,16 +1,18 @@
-# include "TcpConnection.h"
+#include "TcpConnection.h"
 
-TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd, std::string srcAddr, std::string dstAddr, unsigned short srcPort, unsigned short dstPort) : 
-  loop_(loop), 
-  name_(name), 
-  fd_(fd),
-  channel_(new Channel(loop, fd)),
-  srcAddr_(srcAddr),
-  dstAddr_(dstAddr),
-  srcPort_(srcPort),
-  dstPort_(dstPort),
-  state_(kConnecting),
-  httpRequest_(new HttpRequest) {
+TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd,
+                             std::string srcAddr, std::string dstAddr,
+                             unsigned short srcPort, unsigned short dstPort)
+    : state_(kConnecting),
+      srcAddr_(srcAddr),
+      dstAddr_(dstAddr),
+      srcPort_(srcPort),
+      dstPort_(dstPort),
+      name_(name),
+      fd_(fd),
+      channel_(new Channel(loop, fd)),
+      loop_(loop),
+      httpRequest_(new HttpRequest) {
   // 对下层对应的channel设置回调事件
   channel_->setReadHandler(std::bind(&TcpConnection::handleRead, this));
   channel_->setWriteHandler(std::bind(&TcpConnection::handleWrite, this));
@@ -18,7 +20,8 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd, s
   channel_->setErrorHandler(std::bind(&TcpConnection::handleError, this));
   // 设置socket为keepalive
   int optval = 1;
-  setsockopt(fd_, SOL_SOCKET, SO_KEEPALIVE, &optval, static_cast<socklen_t>(sizeof(optval)));
+  setsockopt(fd_, SOL_SOCKET, SO_KEEPALIVE, &optval,
+             static_cast<socklen_t>(sizeof(optval)));
 }
 
 void TcpConnection::connectionEstablished() {
@@ -28,9 +31,7 @@ void TcpConnection::connectionEstablished() {
   setState(kConnected);
   channel_->setDefaultEvents();
   // 使用queueInLoop避免了epoll在wait中阻塞，且不会造成冲突
-  loop_->queueInLoop([this]() {
-    this->channel_->addToEpoll();
-  });
+  loop_->queueInLoop([this]() { this->channel_->addToEpoll(); });
   connCallback_(shared_from_this());
 }
 

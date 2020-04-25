@@ -1,12 +1,15 @@
-# include "net/TcpServer.h"
-# include "base/utility.h"
-# include <sys/socket.h>
-# include <cstring>
-# include <netinet/in.h>
-# include <arpa/inet.h>
-# include <unistd.h>
-# include <functional>
-# include <iostream>
+#include "net/TcpServer.h"
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstring>
+#include <functional>
+#include <iostream>
+
+#include "base/utility.h"
 
 // const __uint32_t DEFAULT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 
@@ -21,29 +24,15 @@ void defaultMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
   std::cout << "read a message: " << message << std::endl;
 }
 
-void httpMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
-  std::shared_ptr<HttpRequest> httpRequest = conn->httpRequest();
-  httpRequest->parseRequest(buf);
-  if (httpRequest->state() == "Done") {
-    HttpRespond httpRespond;
-    httpRespond.setStateCode("200");
-    httpRespond.setBody("hello world");
-    httpRespond.setContentLength(11);
-    // 异步发送
-    conn->send(httpRespond.generateRespond());
-    httpRequest->reset(); 
-  }
-}
-
-TcpServer::TcpServer(unsigned short port, EventLoop *loop) : 
-  srcPort_(port),
-  // 根据端口号初始化acceptedFd
-  listenFd_(socket_bind_listen(srcPort_)),
-  loop_(loop),
-  acceptChannel_(new Channel(loop_, listenFd_)),
-  started_(false),
-  pool_(new EventLoopThreadPool(loop_)) {
-    setSocketNonBlocking(listenFd_);
+TcpServer::TcpServer(unsigned short port, EventLoop* loop)
+    : srcPort_(port),
+      // 根据端口号初始化acceptedFd
+      listenFd_(socket_bind_listen(srcPort_)),
+      loop_(loop),
+      pool_(new EventLoopThreadPool(loop_)),
+      acceptChannel_(new Channel(loop_, listenFd_)),
+      started_(false) {
+  setSocketNonBlocking(listenFd_);
 }
 
 void TcpServer::start() {
@@ -53,15 +42,17 @@ void TcpServer::start() {
   // 将listenFd_加入到epoll中
   loop_->addToPoller(acceptChannel_, 0);
   started_ = true;
-  std::cout << "Start the TcpServer successfully" << std::endl;
+  // std::cout << "Start the TcpServer successfully" << std::endl;
+  loop_->loop();
 }
 
 void TcpServer::setConnCallback(const connCallback& cb = defaultConnCallback) {
-  connCallback = cb;
+  connCallback_ = cb;
 }
 
-void TcpServer::setMessageCallback(const messageCallback& cb = defaultMessageCallback) {
-  messageCallback = cb;
+void TcpServer::setMessageCallback(
+    const messageCallback& cb = defaultMessageCallback) {
+  messageCallback_ = cb;
 }
 
 void TcpServer::handleNewConn() {
@@ -73,10 +64,12 @@ void TcpServer::handleNewConn() {
   socklen_t addrLen = sizeof(clientAddr);
   int acceptFd = 0;
   // 每一次处理新连接都是处理到没有新连接为止(读到EAGAIN)
-  while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr), &addrLen)) > 0) {
+  while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr),
+                            &addrLen)) > 0) {
     // // 日志处理，将连接记录到日志中
-    std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) << ":"
-              << ntohs(clientAddr.sin_port) << std::endl;
+    // std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) <<
+    // ":"
+    //           << ntohs(clientAddr.sin_port) << std::endl;
     std::string dstAddr(inet_ntoa(clientAddr.sin_addr));
     unsigned short dstPort = ntohs(clientAddr.sin_port);
     // 超出最大连接数
@@ -93,18 +86,22 @@ void TcpServer::handleNewConn() {
 
     setSocketNodelay(acceptFd);
     // 从线程池中获取将该连接分配到的线程
-    EventLoop *loop = pool_->getNextLoop();
+    EventLoop* loop = pool_->getNextLoop();
     // 根据acceptFd建立Channel，将Channel加入唯一的Epoll中，直接操作Channel
     // 在创建了一个关于acceptChannel后，将其添加到选定的subReactor线程中
     // 根据acceptFd建立TcpConnection，并将其保存在TcpServer的connections中
-    std::string connectionName = std::string("connection") + std::to_string(count_++);
-    TcpConnectionPtr connection(new TcpConnection(loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
+    std::string connectionName =
+        std::string("connection") + std::to_string(count_++);
+    TcpConnectionPtr connection(new TcpConnection(
+        loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());
     connections_[connectionName] = connection;
-    connection->setMessageCallback(httpMessageCallback);
-    connection->setConnCallback(defaultConnCallback);
-    connection->setCloseCallback(std::bind(&TcpServer::removeConnection, this, connection));
-    loop->runInLoop(std::bind(&TcpConnection::connectionEstablished, connection));
+    connection->setMessageCallback(messageCallback_);
+    connection->setConnCallback(connCallback_);
+    connection->setCloseCallback(
+        std::bind(&TcpServer::removeConnection, this, connection));
+    loop->runInLoop(
+        std::bind(&TcpConnection::connectionEstablished, connection));
   }
   // 因为设置了ONESHOT标志所以需要再次设置，需不需要再次设置ONESHOT呢？
   // acceptChannel_->setEvents(EPOLLIN| EPOLLET);
