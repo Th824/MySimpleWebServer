@@ -1,15 +1,16 @@
-# include <unistd.h>
-# include <iostream>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <netinet/tcp.h>
-# include <sys/types.h>
-# include <fcntl.h>
-# include <bits/stat.h>
-# include <sys/stat.h>
-# include <assert.h>
-# include <regex>
-# include "utility.h"
+#include "utility.h"
+#include <assert.h>
+#include <bits/stat.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <iostream>
+#include <regex>
+#include "Logger.h"
 
 int socket_bind_listen(int port) {
   // 检查端口号是否合法
@@ -18,12 +19,13 @@ int socket_bind_listen(int port) {
   int listenFd = 0;
   // 获取socket描述符
   if ((listenFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    std::cout << "Create socket fail" << std::endl;
+    LOG << "Create socket fail";
     return -1;
   }
   // 强制将socket绑定到port端口，解决无法绑定端口的问题
   int opt = 1;
-  if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
+  if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                 sizeof(opt)) == -1) {
     close(listenFd);
     return -1;
   }
@@ -32,19 +34,20 @@ int socket_bind_listen(int port) {
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
-  if (bind(listenFd, (struct sockaddr*)(&address), sizeof(address)) < 0) {
-    std::cout << "Bind port fail" << std::endl;
+  if (bind(listenFd, (struct sockaddr *)(&address), sizeof(address)) < 0) {
+    LOG << "Bind port fail";
     close(listenFd);
     return -1;
   }
 
   // 开始监听端口，支持的最大连接数是2048
   if (listen(listenFd, 2048) < 0) {
-    std::cout << "Listen fail" << std::endl;
+    LOG << "Listen fail";
     close(listenFd);
     return -1;
   }
-  std::cout << "The socket has run in " << "127.0.0.1:" << port << std::endl;
+  // LOG << "The socket has run in "
+  //     << "127.0.0.1:" << port;
 
   // 上面操作都成功则返回该文件描述符供后续操作
   return listenFd;
@@ -229,7 +232,9 @@ bool isValidPath(const std::string &path) {
     if (!path.compare(beg, len, ".")) {
       ;
     } else if (!path.compare(beg, len, "..")) {
-      if (level == 0) { return false; }
+      if (level == 0) {
+        return false;
+      }
       level--;
     } else {
       level++;
@@ -247,11 +252,13 @@ bool isValidPath(const std::string &path) {
 std::string fileExtension(const std::string &path) {
   std::smatch m;
   static auto re = std::regex("\\.([a-zA-Z0-9]+)$");
-  if (std::regex_search(path, m, re)) { return m[1].str(); }
+  if (std::regex_search(path, m, re)) {
+    return m[1].str();
+  }
   return std::string();
 }
 
-std::string findContentType(const std::string& path) {
+std::string findContentType(const std::string &path) {
   auto ext = fileExtension(path);
   if (ext == "txt") {
     return "text/plain";

@@ -4,22 +4,18 @@
 #include "EventLoop.h"
 #include "EventLoopThreadPool.h"
 #include "base/Callback.h"
+#include "base/Logger.h"
 #include "base/noncopyable.h"
 // # include "HttpRequest.h" // todo using context to replace this function
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <unistd.h>
-
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <memory>
 #include <string>
-
 #include "application/http_server/HttpRequest.h"
-
-// for debug
-#include <iostream>
 
 // 定义一次TCP连接，顶层应用只需要传入回调函数即可
 class TcpConnection : noncopyable,
@@ -32,7 +28,7 @@ class TcpConnection : noncopyable,
                 std::string srcAddr, std::string dstAddr,
                 unsigned short srcPort, unsigned short dstPort);
 
-  ~TcpConnection() { std::cout << "destory conn" << std::endl; }
+  ~TcpConnection() {}
 
   void connectionEstablished();
   void connectDestroyed();
@@ -183,7 +179,7 @@ class TcpConnection : noncopyable,
       handleClose();
     } else {
       errno = savedErrno;
-      // std::cout << "TcpConnection::handleRead";
+      LOG << "TcpConnection::handleRead";
       handleError();
     }
   }
@@ -205,7 +201,7 @@ class TcpConnection : noncopyable,
         }
       }
     } else {
-      // std::cout << "TcpConnection::handleWrite" << std::endl;
+      LOG << "TcpConnection::handleWrite";
     }
   }
   void handleClose() {
@@ -219,7 +215,7 @@ class TcpConnection : noncopyable,
     closeCallback_(guardThis);
   }
   void handleError() {
-    // std::cout << "TcpConnection::handleError" << std::endl;
+    LOG << "TcpConnection::handleError";
   }
 };
 

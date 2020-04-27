@@ -8,7 +8,9 @@ class HttpRespond {
   HttpRespond() {}
   ~HttpRespond() {}
 
-  void setStateCode(const std::string& stateCode) { stateCode_ = stateCode; }
+  void setstatusCode(const std::string& statusCode) {
+    statusCode_ = statusCode;
+  }
 
   void setStatusMessage(const std::string& message) {
     statusMessage_ = message;
@@ -22,7 +24,7 @@ class HttpRespond {
 
   std::string generateRespond() {
     std::stringstream ss;
-    ss << version_ << ' ' << stateCode_ << ' ' << statusMessage_ << crlf;
+    ss << version_ << ' ' << statusCode_ << ' ' << statusMessage_ << crlf;
     if (closeConnection_) {
       ss << "Connection: close" << crlf;
     } else {
@@ -39,16 +41,19 @@ class HttpRespond {
 
   std::string& getBody() { return body_; }
 
+  std::string statusCode() const { return statusCode_; }
+  std::string statusMessage() const { return statusMessage_; }
+
   friend std::ostream& operator<<(std::ostream& output,
                                   const HttpRespond& res) {
-    output << res.stateCode_ << ' ' << res.statusMessage_;
+    output << res.statusCode_ << ' ' << res.statusMessage_;
     return output;
   }
 
  private:
   std::string crlf = "\r\n";
   std::string version_ = "HTTP/1.1";
-  std::string stateCode_;
+  std::string statusCode_;
   std::string statusMessage_ = "OK";
   std::unordered_map<std::string, std::string> headers;
   bool closeConnection_ = false;

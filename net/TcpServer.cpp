@@ -16,14 +16,14 @@
 // const __uint32_t DEFAULT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 
 void defaultConnCallback(const TcpConnectionPtr& conn) {
-  std::cout << conn->srcAddr() << ":" << conn->srcPort() << " -> "
+  LOG << conn->srcAddr() << ":" << conn->srcPort() << " -> "
             << conn->dstAddr() << ":" << conn->dstPort() << " is "
-            << ((conn->connected()) ? "UP" : "DOWN") << std::endl;
+            << ((conn->connected()) ? "UP" : "DOWN");
 }
 
 void defaultMessageCallback(const TcpConnectionPtr& conn, Buffer* buf) {
   std::string message = buf->retrieveAllAsString();
-  std::cout << "read a message: " << message << std::endl;
+  LOG << "read a message: " << message;
 }
 
 TcpServer::TcpServer(unsigned short port, EventLoop* loop)
@@ -44,7 +44,6 @@ void TcpServer::start() {
   // 将listenFd_加入到epoll中
   loop_->addToPoller(acceptChannel_, 0);
   started_ = true;
-  // std::cout << "Start the TcpServer successfully" << std::endl;
   loop_->loop();
 }
 
@@ -66,18 +65,9 @@ void TcpServer::handleNewConn() {
   socklen_t addrLen = sizeof(clientAddr);
   int acceptFd = 0;
 
-  std::cout << "connections num is: " << connections_.size() << std::endl;
-  for (auto kv : connections_) {
-    std::cout << kv.first << ' ' << kv.second.use_count() << std::endl;
-  }
-
   // 每一次处理新连接都是处理到没有新连接为止(读到EAGAIN)
   while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr),
                             &addrLen)) > 0) {
-    // // 日志处理，将连接记录到日志中
-    // std::cout << "New connection from " << inet_ntoa(clientAddr.sin_addr) <<
-    // ":"
-    //           << ntohs(clientAddr.sin_port) << std::endl;
     std::string dstAddr(inet_ntoa(clientAddr.sin_addr));
     unsigned short dstPort = ntohs(clientAddr.sin_port);
     // 超出最大连接数错误处理
@@ -88,7 +78,7 @@ void TcpServer::handleNewConn() {
 
     // 将连接套接字设置为非阻塞模式
     if (setSocketNonBlocking(acceptFd) < 0) {
-      // std::cout << "Set non block failed" << std::endl;
+      LOG << "Set non block failed";
       return;
     }
 

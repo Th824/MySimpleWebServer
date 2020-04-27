@@ -1,13 +1,12 @@
-# include <assert.h>
-# include <iostream>
-# include "Epoll.h"
+#include "Epoll.h"
+#include "base/Logger.h"
+#include <assert.h>
+#include <iostream>
 
 const int EVENTSNUM = 4096;
 const int EPOLLWAIT_TIME = 10000;
 
-Epoll::Epoll()
- :epollFd_(epoll_create1(EPOLL_CLOEXEC)),
-  events_(EVENTSNUM) {
+Epoll::Epoll() : epollFd_(epoll_create1(EPOLL_CLOEXEC)), events_(EVENTSNUM) {
   assert(epollFd_ > 0);
 }
 
@@ -54,10 +53,12 @@ void Epoll::epoll_del(Channel* request) {
 std::vector<Channel*> Epoll::poll() {
   while (true) {
     // 将epoll返回的活跃事件写入events_
-    // 最后一个参数表示超时时间，0表示立即返回（会陷入busy loop），-1表示只有当有事件产生才返回，正数t表示在有事件产生或者t秒后返回
-    int eventsNum = epoll_wait(epollFd_, &*events_.begin(), events_.size(), EPOLLWAIT_TIME);
+    // 最后一个参数表示超时时间，0表示立即返回（会陷入busy
+    // loop），-1表示只有当有事件产生才返回，正数t表示在有事件产生或者t秒后返回
+    int eventsNum =
+        epoll_wait(epollFd_, &*events_.begin(), events_.size(), EPOLLWAIT_TIME);
     if (eventsNum > 0) {
-      // std::cout << eventsNum << " connection arrive!" << std::endl;
+      // LOG << eventsNum << " connection arrive!";
     }
     if (eventsNum < 0) perror("epoll wait error");
     std::vector<Channel*> reqData;
@@ -66,7 +67,6 @@ std::vector<Channel*> Epoll::poll() {
       Channel* curReq = fd2chan_[fd];
 
       if (curReq) {
-        // std::cout << "The req is valid" << std::endl;
         curReq->setRevents(events_[i].events);
         curReq->setEvents(0);
         reqData.push_back(curReq);

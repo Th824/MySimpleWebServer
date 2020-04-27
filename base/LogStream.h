@@ -1,51 +1,48 @@
 #pragma once
-#include "noncopyable.h"
-#include <vector>
-#include <string>
-#include <cstring>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <condition_variable>
-#include <functional>
 #include <assert.h>
 #include <chrono>
+#include <condition_variable>
+#include <cstring>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+#include "noncopyable.h"
 
 const int kSmallSize = 4000;
 const int kLargeSize = 4000 * 1000;
 
-template<int SIZE>
+template <int SIZE>
 class FixedBuffer : noncopyable {
-public:
-  FixedBuffer()
-   : cur_index(0),
-     data_(SIZE, '\0') {};
-  ~FixedBuffer() {};
+ public:
+  FixedBuffer() : cur_index(0), data_(SIZE, '\0'){};
+  ~FixedBuffer(){};
 
   // TODO
   void append(const std::string& buf) {
     if (avail() > buf.length()) {
-      data_.replace(data_.begin() + cur_index, data_.begin() + cur_index + buf.length(), buf);
-      // std::cout << data_ << std::endl;
-      // memcpy(data_.data() + cur_index, buf.data(), buf.length());
+      data_.replace(data_.begin() + cur_index,
+                    data_.begin() + cur_index + buf.length(), buf);
       cur_index += buf.length();
     }
   };
 
-  int length() const {return cur_index;};
-  int avail() const {return SIZE - cur_index - 1;};
-  const std::string data() const {return data_.substr(0, cur_index);};
-  void reset() {cur_index = 0;};
+  int length() const { return cur_index; };
+  int avail() const { return SIZE - cur_index - 1; };
+  const std::string data() const { return data_.substr(0, cur_index); };
+  void reset() { cur_index = 0; };
 
-private:
+ private:
   std::string data_;
   int cur_index;
 };
 
 class LogStream : noncopyable {
-public:
+ public:
   typedef FixedBuffer<kSmallSize> Buffer;
 
   LogStream& operator<<(short v) {
@@ -81,7 +78,7 @@ public:
     return *this;
   }
 
-  LogStream& operator<<(const void *);
+  LogStream& operator<<(const void*);
 
   LogStream& operator<<(float v) {
     *this << static_cast<double>(v);
@@ -122,11 +119,11 @@ public:
   }
 
   // 向外提供接口
-  void append(const std::string& data) {buffer_.append(data);}
-  const Buffer& buffer() const {return buffer_;}
-  void resetBuffer() {buffer_.reset();}
+  void append(const std::string& data) { buffer_.append(data); }
+  const Buffer& buffer() const { return buffer_; }
+  void resetBuffer() { buffer_.reset(); }
 
-private:
+ private:
   // 用来将多个输入连接成一条的缓冲区
   Buffer buffer_;
 };

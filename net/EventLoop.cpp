@@ -1,34 +1,35 @@
-# include "EventLoop.h"
-# include <assert.h>
-# include <iostream>
-# include <sys/eventfd.h>
-# include <sys/epoll.h>
-# include <functional>
+#include "EventLoop.h"
+#include <assert.h>
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
+#include <functional>
+#include <iostream>
+#include "base/Logger.h"
 
 // 通过eventfd来实现wakeup，将wakeupFd添加到epoll中，如果需要唤醒，则往
 // wakeupFd中写入数据，这样epoll就能从epoll_wait中返回。
 int createEventfd() {
   int evtfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
   if (evtfd < 0) {
-    std::cout << "Failed to create event fd" << std::endl;
+    LOG << "Failed to create event fd";
     abort();
   }
   return evtfd;
 }
 
-EventLoop::EventLoop() : 
-  looping_(false),
-  quit_(false),
-  threadId_(std::this_thread::get_id()),
-  wakeupFd_(createEventfd()),
-  callingPendingFunctors_(false),
-  pwakeupChannel_(new Channel(this, wakeupFd_)),
-  poller_(new Epoll()) {
-    // 设置pwakeupChannel
-    pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
-    pwakeupChannel_->setReadHandler(std::bind(&EventLoop::handleRead, this));
-    pwakeupChannel_->setConnHandler(std::bind(&EventLoop::handleConn, this));
-    pwakeupChannel_->addToEpoll();
+EventLoop::EventLoop()
+    : looping_(false),
+      quit_(false),
+      threadId_(std::this_thread::get_id()),
+      wakeupFd_(createEventfd()),
+      callingPendingFunctors_(false),
+      pwakeupChannel_(new Channel(this, wakeupFd_)),
+      poller_(new Epoll()) {
+  // 设置pwakeupChannel
+  pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
+  pwakeupChannel_->setReadHandler(std::bind(&EventLoop::handleRead, this));
+  pwakeupChannel_->setConnHandler(std::bind(&EventLoop::handleConn, this));
+  pwakeupChannel_->addToEpoll();
 }
 
 void EventLoop::loop() {
@@ -36,12 +37,11 @@ void EventLoop::loop() {
   assert(isInLoopThread());
   looping_ = true;
   quit_ = false;
-  std::vector<Channel*> ret;
+  std::vector<Channel *> ret;
   while (!quit_) {
     ret.clear();
     // 在这里阻塞直到有事件产生
     ret = poller_->poll();
-    // std::cout << ret.size() << " events happen" << std::endl;
     // 调用有事件产生的Channel的回调函数
     for (auto &it : ret) {
       it->handleEvents();
@@ -65,13 +65,11 @@ bool EventLoop::isInLoopThread() const {
   return threadId_ == std::this_thread::get_id();
 }
 
-void EventLoop::runInLoop(Functor&& cb) {
+void EventLoop::runInLoop(Functor &&cb) {
   // 如果由IO线程调用，那么直接执行函数，否则将其加入到回调队列中等待执行
   if (isInLoopThread()) {
-    // std::cout << "here" << std::endl;
     cb();
   } else {
-    // std::cout << "here2" << std::endl;
     queueInLoop(std::move(cb));
   }
 }
@@ -88,9 +86,7 @@ void EventLoop::queueInLoop(Functor &&cb) {
   if (!isInLoopThread() || callingPendingFunctors_) wakeup();
 }
 
-void EventLoop::assertInLoopThread() {
-  assert(isInLoopThread());
-}
+void EventLoop::assertInLoopThread() { assert(isInLoopThread()); }
 
 void EventLoop::doPendingFunctors() {
   std::vector<Functor> functors;
@@ -109,9 +105,10 @@ void EventLoop::doPendingFunctors() {
 void EventLoop::wakeup() {
   uint64_t one = 1;
   // 往wakeupFd中写入数据
-  ssize_t n = writen(wakeupFd_, (char*)(&one), sizeof(one));
+  ssize_t n = writen(wakeupFd_, (char *)(&one), sizeof(one));
+  // 写入错误处理
   if (n != sizeof(one)) {
-    std::cout << "EventLoop::wakeup() writes " << n << " bytes instead of 8" << std::endl;
+    LOG << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
   }
 }
 
@@ -120,11 +117,9 @@ void EventLoop::handleRead() {
   // 从wakeupFd中读出数据
   ssize_t n = readn(wakeupFd_, &one, sizeof(one));
   if (n != sizeof(one)) {
-    std::cout << "EventLoop::handleRead() reads " << n << " bytes instead of 8" << std::endl;
+    LOG << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
   }
   // 没有设置oneshot的标志的话不用重新设置epoll事件标志
 }
 
-void EventLoop::handleConn() {
-  pwakeupChannel_->update();
-}
+void EventLoop::handleConn() { pwakeupChannel_->update(); }

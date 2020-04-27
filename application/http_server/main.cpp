@@ -1,5 +1,8 @@
 #include "HttpServer.h"
 #include "net/EventLoop.h"
+#include "base/Logger.h"
+
+bool Logger::outputToConsole = true;
 
 int main() {
   unsigned short port = 30000;

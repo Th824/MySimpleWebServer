@@ -9,6 +9,7 @@
 #include "HttpRequest.h"
 #include "HttpRespond.h"
 #include "base/Callback.h"
+#include "base/Logger.h"
 #include "base/noncopyable.h"
 #include "base/utility.h"
 #include "net/EventLoop.h"
@@ -17,8 +18,9 @@
 class HttpServer : noncopyable {
  public:
   using HttpHandler = std::function<void(const HttpRequest&, HttpRespond&)>;
-  HttpServer(unsigned short listenedPort, EventLoop* loop)
-      : tcpServer_(listenedPort, loop) {}
+  HttpServer(unsigned short port, EventLoop* loop,
+             const std::string& host = "127.0.0.1")
+      : host_(host), port_(port), tcpServer_(port, loop) {}
   ~HttpServer() = default;
 
   void start() {
@@ -64,7 +66,9 @@ class HttpServer : noncopyable {
             HttpRespond httpRespond;
             // 根据已注册的路由方法进行路由
             this->routingHandler(*httpRequest, httpRespond);
-            std::cout << *httpRequest << ' ' << httpRespond << std::endl;
+            LOG << httpRequest->method() << ' ' << this->host_ << ':'
+                << this->port_ << httpRequest->path() << ' '
+                << httpRespond.statusCode() << ' ' << httpRespond.statusMessage;
             // 异步发送
             conn->send(httpRespond.generateRespond());
             httpRequest->reset();
@@ -74,9 +78,9 @@ class HttpServer : noncopyable {
 
   void setConnCallback() {
     tcpServer_.setConnCallback([this](const TcpConnectionPtr& conn) {
-      std::cout << conn->srcAddr() << ":" << conn->srcPort() << " -> "
-                << conn->dstAddr() << ":" << conn->dstPort() << " is "
-                << ((conn->connected()) ? "UP" : "DOWN") << std::endl;
+      LOG << conn->srcAddr() << ":" << conn->srcPort() << " -> "
+          << conn->dstAddr() << ":" << conn->dstPort() << " is "
+          << ((conn->connected()) ? "UP" : "DOWN");
     });
   }
 
@@ -103,15 +107,20 @@ class HttpServer : noncopyable {
               res.setHeader("Content-Length",
                             std::to_string(res.getBody().length()));
             }
-            //            res.setContentLength(res.getBody().length());
-            res.setStateCode("200");
+            res.setstatusCode("200");
             res.setStatusMessage("OK");
+            return true;
+          } else {
+            LOG << "Not exist such file";
           }
+        } else {
+          LOG << "Invalid path";
         }
-        return true;
+      } else {
+        LOG << "Not mount such dir";
       }
     }
-    res.setStateCode("404");
+    res.setstatusCode("404");
     res.setStatusMessage("Not Found");
     return false;
   }
@@ -159,19 +168,22 @@ class HttpServer : noncopyable {
       }
     } catch (const std::exception& ex) {
       // 处理出错
-      res.setStateCode("500");
+      res.setstatusCode("500");
       res.setHeader("EXCEPTION_WHAT", ex.what());
     } catch (...) {
-      res.setStateCode("500");
+      res.setstatusCode("500");
       res.setHeader("EXCEPTION_WHAT", "UNKNOWN");
     }
     return false;
   }
 
  private:
+  std::string host_;
+  unsigned short port_;
   TcpServer tcpServer_;
   std::vector<std::pair<std::regex, HttpHandler>> getHandlers_;
-  std::string staticFilePathPrefix_ = "/home/lab515/WebServer/MySimpleWebServer/static/";
+  std::string staticFilePathPrefix_ =
+      "/home/lab515/WebServer/MySimpleWebServer/static/";
   std::vector<std::pair<std::string, std::string>> mountToDir_;
   // 请求到达的路由处理函数
 };

@@ -68,7 +68,6 @@ class Channel : noncopyable {
 
   // 根据发生的不同的数据类型执行不同的回调函数
   void handleEvents() {
-    // std::cout << "Call Callback function" << std::endl;
     events_ = 0;
     // 如果发生的事件是对端关闭且没有写入数据
     if ((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN)) {
