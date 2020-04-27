@@ -1,5 +1,6 @@
-# include "Channel.h"
-# include "EventLoop.h"
+#include "Channel.h"
+
+#include "EventLoop.h"
 
 const int Channel::kNoneEvent = 0;
 const int Channel::kDefaultEvent = EPOLLIN | EPOLLPRI | EPOLLOUT | EPOLLET;
@@ -21,22 +22,16 @@ void Channel::handleRead() {
 }
 
 void Channel::handleWrite() {
-  if (writeHandler_ ) writeHandler_();
+  if (writeHandler_) writeHandler_();
 }
 
 // void Channel::handleError(int fd, int err_num, std::string short_msg) {
-  
+
 // }
 
-void Channel::update() {
-  loop_->updatePoller(this);
-}
+void Channel::update() { loop_->updatePoller(this); }
 
-void Channel::addToEpoll() {
-  loop_->addToPoller(this);
-}
+void Channel::addToEpoll() { loop_->addToPoller(this); }
 
 // 从epoll中移出该channel，一般发生在连接销毁
-void Channel::remove() {
-  loop_->removefromPoller(this);
-}
+void Channel::remove() { loop_->removefromPoller(this); }

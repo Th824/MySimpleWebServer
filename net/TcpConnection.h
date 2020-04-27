@@ -18,6 +18,9 @@
 
 #include "application/http_server/HttpRequest.h"
 
+// for debug
+#include <iostream>
+
 // 定义一次TCP连接，顶层应用只需要传入回调函数即可
 class TcpConnection : noncopyable,
                       public std::enable_shared_from_this<TcpConnection> {
@@ -28,13 +31,15 @@ class TcpConnection : noncopyable,
   TcpConnection(EventLoop* loop, const std::string& name, int fd,
                 std::string srcAddr, std::string dstAddr,
                 unsigned short srcPort, unsigned short dstPort);
-  ~TcpConnection() {}
+
+  ~TcpConnection() { std::cout << "destory conn" << std::endl; }
 
   void connectionEstablished();
   void connectDestroyed();
 
   bool connected() const { return state_ == kConnected; }
 
+  // 连接的关闭，需要自顶向下关闭，包括TcpConnection，Channel，socketFd，Epoll中事件的清除
   void shutdown() {
     // FIXME: use compare and swap
     if (state_ == kConnected) {
@@ -114,6 +119,7 @@ class TcpConnection : noncopyable,
   }
 
   // 这三个回调函数应该由应用程序传入定义，不同应用层协议（不同应用）应该传入不同的回调函数
+  // 在bind的时候，四个Callback都持有了一个指向自身this指针的智能指针，且该指针会导致无法析构
   void setConnCallback(const connCallback& cb) { connCallback_ = cb; }
   void setMessageCallback(const messageCallback& cb) { messageCallback_ = cb; }
   void setCloseCallback(const closeCallback& cb) { closeCallback_ = cb; }
@@ -135,19 +141,24 @@ class TcpConnection : noncopyable,
  private:
   // 表示当前状态
   State state_;
-  // using readCallback = std::function<void (const TcpConnectionPtr&)>;
 
   // 由四元组来定义一个TCP连接
   std::string srcAddr_, dstAddr_;
   unsigned short srcPort_, dstPort_;
+
+  // 连接的名字，作为TcpServer对连接进行管理的键
   std::string name_;
+  // 连接所对应的socket fd
   int fd_;
+
   // 定义两个缓冲区，应用程序直接往缓冲区中写数据即可，由缓冲区来负责把数据写入内核
   // 此缓冲区不是tcp socket内核缓冲区
   Buffer inputBuffer_, outputBuffer_;
   std::unique_ptr<Channel> channel_;
+
   // 该连接所属的EventLoop/IO线程
   EventLoop* loop_;
+
   // 回调函数
   connCallback connCallback_;
   writeCompleteCallback writeCompleteCallback_;

@@ -3,19 +3,14 @@
 #include <unordered_map>
 
 #include "base/noncopyable.h"
+#include "base/Callback.h"
 #include "net/Channel.h"
 #include "net/EventLoop.h"
 #include "net/EventLoopThreadPool.h"
 #include "net/TcpConnection.h"
-// # include "HttpRequest.h"
-// # include "HttpRespond.h"
 
 // Tcp传输层服务器类，只需要向应用层提供onMessage和onConnection两个回调函数
 class TcpServer : noncopyable {
- private:
-  using messageCallback = std::function<void(const TcpConnectionPtr&, Buffer*)>;
-  using connCallback = std::function<void(const TcpConnectionPtr&)>;
-
  public:
   TcpServer(unsigned short srcPort, EventLoop* loop);
   ~TcpServer(){};
@@ -46,7 +41,6 @@ class TcpServer : noncopyable {
   connCallback connCallback_;
   messageCallback messageCallback_;
 
- private:
   // 服务器支持的最大连接数
   static const int MAXFDS = 100000;
 };

@@ -19,6 +19,7 @@ class Buffer {
 public:
   static const size_t kCheapPrepend = 8;
   static const size_t kInitialSize = 1024;
+  // 涉及到explict关键字的使用，只能显式调用该函数
   explicit Buffer(size_t initialSize = kInitialSize)
     : buffer_(kCheapPrepend + initialSize),
       readIndex_(kCheapPrepend),
@@ -120,16 +121,24 @@ public:
     //   writeIndex_ = buffer_.size();
     //   append(extrabuf, n - writable);
     // }
+    // 使用edge trigger方式触发读取socket中的数据，因此，需要完全读取完socket缓冲区中的数据
+    // 使用while循环来读取，每次读取的缓冲区大小为4096 bytes（栈上空间）
+    /*
+      On success, the number of bytes read is returned (zero indicates end
+      of file), and the file position is advanced by this number.
+    */
     ssize_t n = 0, sum = 0;
     char buf[4096];
     while ((n = read(fd, buf, sizeof(buf))) > 0) {
       sum += n;
       append(buf, n);
     }
+    // 读取到了文件结尾，即对面发出关闭socket信号
     if (n == 0) {
-      assert(sum == 0);
+      // assert(sum == 0);
       return 0;
     }
+    // 读取发生错误，返回-1，且判断errno，正常情况应该读取到发生EAGAIN error
     if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
       assert(sum > 0);
       return sum;

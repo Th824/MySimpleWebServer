@@ -37,11 +37,13 @@ void TcpConnection::connectionEstablished() {
 
 void TcpConnection::connectDestroyed() {
   loop_->assertInLoopThread();
+
   if (state_ == kConnected) {
     setState(kDisconnected);
     channel_->setNoneEvents();
     connCallback_(shared_from_this());
   }
+  closeCallback_.~closeCallback();
   channel_->remove();
   // fd的生命周期由TcpConnection管理
   close(fd_);

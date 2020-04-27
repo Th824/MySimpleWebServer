@@ -11,6 +11,8 @@
 
 #include "base/utility.h"
 
+#include <istream>
+
 // const __uint32_t DEFAULT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 
 void defaultConnCallback(const TcpConnectionPtr& conn) {
@@ -63,6 +65,12 @@ void TcpServer::handleNewConn() {
   memset(&clientAddr, 0, sizeof(struct sockaddr_in));
   socklen_t addrLen = sizeof(clientAddr);
   int acceptFd = 0;
+
+  std::cout << "connections num is: " << connections_.size() << std::endl;
+  for (auto kv : connections_) {
+    std::cout << kv.first << ' ' << kv.second.use_count() << std::endl;
+  }
+
   // 每一次处理新连接都是处理到没有新连接为止(读到EAGAIN)
   while ((acceptFd = accept(listenFd_, (struct sockaddr*)(&clientAddr),
                             &addrLen)) > 0) {
@@ -72,7 +80,7 @@ void TcpServer::handleNewConn() {
     //           << ntohs(clientAddr.sin_port) << std::endl;
     std::string dstAddr(inet_ntoa(clientAddr.sin_addr));
     unsigned short dstPort = ntohs(clientAddr.sin_port);
-    // 超出最大连接数
+    // 超出最大连接数错误处理
     if (acceptFd >= MAXFDS) {
       close(acceptFd);
       continue;
@@ -80,13 +88,14 @@ void TcpServer::handleNewConn() {
 
     // 将连接套接字设置为非阻塞模式
     if (setSocketNonBlocking(acceptFd) < 0) {
-      std::cout << "Set non block failed" << std::endl;
+      // std::cout << "Set non block failed" << std::endl;
       return;
     }
 
     setSocketNodelay(acceptFd);
     // 从线程池中获取将该连接分配到的线程
     EventLoop* loop = pool_->getNextLoop();
+
     // 根据acceptFd建立Channel，将Channel加入唯一的Epoll中，直接操作Channel
     // 在创建了一个关于acceptChannel后，将其添加到选定的subReactor线程中
     // 根据acceptFd建立TcpConnection，并将其保存在TcpServer的connections中
@@ -96,10 +105,13 @@ void TcpServer::handleNewConn() {
         loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());
     connections_[connectionName] = connection;
+    // 对新建的connection设置接收消息回调函数，在有消息到来时，会调用该函数
     connection->setMessageCallback(messageCallback_);
+    // 对新建的connection设置连接
     connection->setConnCallback(connCallback_);
+    // 设置关闭连接的回调函数，该函数定义在TcpServer中，主要包括
     connection->setCloseCallback(
-        std::bind(&TcpServer::removeConnection, this, connection));
+        std::bind(&TcpServer::removeConnection, this, std::placeholders::_1));
     loop->runInLoop(
         std::bind(&TcpConnection::connectionEstablished, connection));
   }
@@ -116,5 +128,6 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
   loop_->assertInLoopThread();
   connections_.erase(conn->name());
   EventLoop* loop = conn->loop();
+  // bind与lambda表达式的区别，将conn作为参数传入是否会改变share_ptr的引用计数
   loop->queueInLoop(std::bind(&TcpConnection::connectDestroyed, conn));
 }
