@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "base/noncopyable.h"
+#include "base/Logger.h"
 
 class EventLoop;
 
@@ -68,22 +69,27 @@ class Channel : noncopyable {
 
   // 根据发生的不同的数据类型执行不同的回调函数
   void handleEvents() {
+    // LOG << fd_ << " handleEvents";
     events_ = 0;
     // 如果发生的事件是对端关闭且没有写入数据
     if ((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN)) {
+      // LOG << fd_ << " close";
       events_ = 0;
       if (closeHandler_) closeHandler_();
       return;
     }
     if (revents_ & EPOLLERR) {
+      // LOG << fd_ << " error happen";
       if (errorHandler_) errorHandler_();
       events_ = 0;
       return;
     }
     if (revents_ & (EPOLLIN | EPOLLPRI | EPOLLRDHUP)) {
+      // LOG << fd_ << " can read";
       handleRead();
     }
     if (revents_ & EPOLLOUT) {
+      // LOG << fd_ << " can write";
       handleWrite();
     }
     handleConn();

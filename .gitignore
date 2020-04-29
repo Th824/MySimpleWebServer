@@ -23,3 +23,9 @@ build
 
 bin
 lib
+
+# ignore Log
+Log
+
+# ignore tmp
+tmp

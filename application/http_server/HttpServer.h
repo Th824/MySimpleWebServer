@@ -68,7 +68,7 @@ class HttpServer : noncopyable {
             this->routingHandler(*httpRequest, httpRespond);
             LOG << httpRequest->method() << ' ' << this->host_ << ':'
                 << this->port_ << httpRequest->path() << ' '
-                << httpRespond.statusCode() << ' ' << httpRespond.statusMessage;
+                << httpRespond.statusCode() << ' ' << httpRespond.statusMessage();
             // 异步发送
             conn->send(httpRespond.generateRespond());
             httpRequest->reset();

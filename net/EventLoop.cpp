@@ -28,7 +28,7 @@ EventLoop::EventLoop()
   // 设置pwakeupChannel
   pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
   pwakeupChannel_->setReadHandler(std::bind(&EventLoop::handleRead, this));
-  pwakeupChannel_->setConnHandler(std::bind(&EventLoop::handleConn, this));
+  // pwakeupChannel_->setConnHandler(std::bind(&EventLoop::handleConn, this));
   pwakeupChannel_->addToEpoll();
 }
 
@@ -113,6 +113,7 @@ void EventLoop::wakeup() {
 }
 
 void EventLoop::handleRead() {
+  // LOG << "wakeupChannel " << pwakeupChannel_->getFd() << " handle read";
   uint64_t one = 1;
   // 从wakeupFd中读出数据
   ssize_t n = readn(wakeupFd_, &one, sizeof(one));
@@ -122,4 +123,4 @@ void EventLoop::handleRead() {
   // 没有设置oneshot的标志的话不用重新设置epoll事件标志
 }
 
-void EventLoop::handleConn() { pwakeupChannel_->update(); }
+// void EventLoop::handleConn() { pwakeupChannel_->update(); }

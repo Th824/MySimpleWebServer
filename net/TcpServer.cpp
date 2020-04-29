@@ -91,6 +91,7 @@ void TcpServer::handleNewConn() {
     // 根据acceptFd建立TcpConnection，并将其保存在TcpServer的connections中
     std::string connectionName =
         std::string("connection") + std::to_string(count_++);
+    LOG << "acceptChannel " << acceptChannel_->getFd() << " handle read";
     TcpConnectionPtr connection(new TcpConnection(
         loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());

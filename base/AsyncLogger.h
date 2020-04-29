@@ -1,34 +1,34 @@
 #pragma once
-#include "noncopyable.h"
-#include "LogStream.h"
-#include <vector>
-#include <string>
-#include <cstring>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <condition_variable>
-#include <functional>
 #include <assert.h>
 #include <chrono>
+#include <condition_variable>
+#include <cstring>
 #include <fstream>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+#include "LogStream.h"
+#include "noncopyable.h"
 
 class AsyncLogger : noncopyable {
-public:
+ public:
   AsyncLogger(const std::string& filename)
-   : running_(false),
-     thread_(nullptr),
-     filename_(filename),
-     currentBuffer_(new Buffer),
-     nextBuffer_(new Buffer) {
-       buffers_.reserve(16);
+      : running_(false),
+        thread_(nullptr),
+        currentBuffer_(new Buffer),
+        nextBuffer_(new Buffer),
+        filename_(filename) {
+    buffers_.reserve(16);
   };
+  
   ~AsyncLogger() {
-    if (running_)
-      stop();
+    if (running_) stop();
   }
 
-  void append(const std::string &logline);
+  void append(const std::string& logline);
 
   void start() {
     running_ = true;
@@ -44,7 +44,7 @@ public:
     thread_->join();
   }
 
-private:
+ private:
   void threadFunc();
 
   typedef FixedBuffer<kLargeSize> Buffer;

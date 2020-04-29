@@ -19,7 +19,7 @@ const int kLargeSize = 4000 * 1000;
 template <int SIZE>
 class FixedBuffer : noncopyable {
  public:
-  FixedBuffer() : cur_index(0), data_(SIZE, '\0'){};
+  FixedBuffer() : data_(SIZE, '\0'), cur_index(0){};
   ~FixedBuffer(){};
 
   // TODO
@@ -31,8 +31,8 @@ class FixedBuffer : noncopyable {
     }
   };
 
-  int length() const { return cur_index; };
-  int avail() const { return SIZE - cur_index - 1; };
+  size_t length() const { return cur_index; };
+  size_t avail() const { return SIZE - cur_index - 1; };
   const std::string data() const { return data_.substr(0, cur_index); };
   void reset() { cur_index = 0; };
 

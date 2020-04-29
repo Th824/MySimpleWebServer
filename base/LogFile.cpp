@@ -4,8 +4,8 @@
 LogFile::LogFile(const std::string& basename, int flushEveryN)
     : basename_(basename),
       flushEveryN_(flushEveryN),
-      mutex_(new std::mutex),
-      count_(0) {
+      count_(0),
+      mutex_(new std::mutex) {
   file_.reset(new AppendFile(basename));
 }
 

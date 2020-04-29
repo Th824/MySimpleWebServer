@@ -1,39 +1,40 @@
-# pragma once
-# include "base/noncopyable.h"
-# include "base/Callback.h"
-# include "EventLoop.h"
-# include "Channel.h"
-# include "EventLoopThreadPool.h"
-# include <memory>
-# include <cassert>
-# include <sys/uio.h>
-# include <string>
-# include <unistd.h>
-# include <functional>
-# include <algorithm>
+#pragma once
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <cassert>
+#include <functional>
+#include <memory>
+#include <string>
+
+#include "Channel.h"
+#include "EventLoop.h"
+#include "EventLoopThreadPool.h"
+#include "base/Callback.h"
+#include "base/noncopyable.h"
 
 // 应用层缓冲区
 // 应用只需要将数据写到Buffer，并且将数据从Buffer读出，而避免了
 // 从fd读写数据而造成阻塞使得无法快速回到loop
 class Buffer {
-public:
+ public:
   static const size_t kCheapPrepend = 8;
   static const size_t kInitialSize = 1024;
   // 涉及到explict关键字的使用，只能显式调用该函数
   explicit Buffer(size_t initialSize = kInitialSize)
-    : buffer_(kCheapPrepend + initialSize),
-      readIndex_(kCheapPrepend),
-      writeIndex_(kCheapPrepend) {
-    
-  }
+      : buffer_(kCheapPrepend + initialSize),
+        readIndex_(kCheapPrepend),
+        writeIndex_(kCheapPrepend) {}
 
-  size_t readableBytes() const {return writeIndex_ - readIndex_;}
-  size_t writableBytes() const {return buffer_.size() - writeIndex_;}
-  size_t prependableBytes() const {return readIndex_;}
-  const char* peek() const {return begin() + readIndex_;}
+  bool readable() const { return writeIndex_ != readIndex_; }
+  size_t readableBytes() const { return writeIndex_ - readIndex_; }
+  size_t writableBytes() const { return buffer_.size() - writeIndex_; }
+  size_t prependableBytes() const { return readIndex_; }
+  const char* peek() const { return begin() + readIndex_; }
   const char* findCRLF() const {
     const char* ret = std::search(peek(), beginWrite(), kCRLF, kCRLF + 2);
-    return ret == beginWrite()? nullptr: ret;
+    return ret == beginWrite() ? nullptr : ret;
   }
 
   void retrieve(size_t len) {
@@ -51,9 +52,7 @@ public:
     retrieve(end - peek());
   }
 
-  void retrieveAll() {
-    readIndex_ = writeIndex_ = kCheapPrepend;
-  }
+  void retrieveAll() { readIndex_ = writeIndex_ = kCheapPrepend; }
 
   std::string retrieveAllAsString() {
     return retrieveAsString(readableBytes());
@@ -84,8 +83,8 @@ public:
     }
     assert(writableBytes() >= len);
   }
-  char* beginWrite() {return begin() + writeIndex_;}
-  const char* beginWrite() const {return begin() + writeIndex_;}
+  char* beginWrite() { return begin() + writeIndex_; }
+  const char* beginWrite() const { return begin() + writeIndex_; }
   void hasWritten(size_t len) {
     assert(len <= writableBytes());
     writeIndex_ += len;
@@ -121,7 +120,8 @@ public:
     //   writeIndex_ = buffer_.size();
     //   append(extrabuf, n - writable);
     // }
-    // 使用edge trigger方式触发读取socket中的数据，因此，需要完全读取完socket缓冲区中的数据
+    // 使用edge
+    // trigger方式触发读取socket中的数据，因此，需要完全读取完socket缓冲区中的数据
     // 使用while循环来读取，每次读取的缓冲区大小为4096 bytes（栈上空间）
     /*
       On success, the number of bytes read is returned (zero indicates end
@@ -146,10 +146,11 @@ public:
     *savedErrno = errno;
     return n;
   }
-private:
+
+ private:
   char kCRLF[3] = "\r\n";
-  char* begin() {return &*buffer_.begin();}
-  const char* begin() const {return &*buffer_.begin();}
+  char* begin() { return &*buffer_.begin(); }
+  const char* begin() const { return &*buffer_.begin(); }
 
   void makeSpace(size_t len) {
     // 如果空间不足，可用空间包括前面的prepend和写指针后面的大小之和
@@ -159,7 +160,8 @@ private:
       // 空间足够则将数据往前移动到kCheapPrepend
       assert(kCheapPrepend < readIndex_);
       size_t readable = readableBytes();
-      std::copy(begin() + readIndex_, begin() + writeIndex_, begin() + kCheapPrepend);
+      std::copy(begin() + readIndex_, begin() + writeIndex_,
+                begin() + kCheapPrepend);
       readIndex_ = kCheapPrepend;
       writeIndex_ = readIndex_ + readable;
       assert(readable == readableBytes());

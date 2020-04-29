@@ -1,6 +1,5 @@
 #include "utility.h"
 #include <assert.h>
-#include <bits/stat.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

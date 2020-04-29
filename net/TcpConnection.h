@@ -35,7 +35,7 @@ class TcpConnection : noncopyable,
 
   bool connected() const { return state_ == kConnected; }
 
-  // 连接的关闭，需要自顶向下关闭，包括TcpConnection，Channel，socketFd，Epoll中事件的清除
+  // 连接的主动关闭，需要自顶向下关闭，包括TcpConnection，Channel，socketFd，Epoll中事件的清除
   void shutdown() {
     // FIXME: use compare and swap
     if (state_ == kConnected) {
@@ -167,6 +167,7 @@ class TcpConnection : noncopyable,
   // 的时候调用不同的回调函数
   // 从socket中读取数据
   void handleRead() {
+    // LOG << "Tcp connection " << channel_->getFd() << " handle read";
     loop_->assertInLoopThread();
     int savedErrno = 0;
     // inputBuffer_从socket中读取，读到EAGAIN为止
@@ -183,11 +184,21 @@ class TcpConnection : noncopyable,
       handleError();
     }
   }
+
   // 将数据写到socket中，最可能发生阻塞的地方
+  /*
+  由于tcp poll和edgetrigger的关系，在socket缓冲区可写时，如果有有EPOLLIN事件产生 epoll会使用tcp
+  poll方法去检测socket中是否还有其他事件，此时，可以检测到EPOLLOUT事件
+  因此，经常会同时返回EPOLLIN & EPOLLOUT事件。
+  具体可参见 https://cloud.tencent.com/developer/article/1481046
+  */
   void handleWrite() {
     loop_->assertInLoopThread();
+    // 判断缓冲区中是否有需要写到socket的数据，即检测outputBuffer是否可读
+    if (!outputBuffer_.readable()) return;
     ssize_t n = write(channel_->getFd(), outputBuffer_.peek(),
                       outputBuffer_.readableBytes());
+    // 成功写入数据
     if (n > 0) {
       outputBuffer_.retrieve(n);
       if (outputBuffer_.readableBytes() == 0) {
@@ -201,10 +212,12 @@ class TcpConnection : noncopyable,
         }
       }
     } else {
-      LOG << "TcpConnection::handleWrite";
+      LOG << "TcpConnection::handleWrite but write " << n << " bytes";
     }
   }
+
   void handleClose() {
+    // LOG << channel_->getFd() << " handle close";
     loop_->assertInLoopThread();
     assert(state_ == kConnected || state_ == kDisconnecting);
     setState(kDisconnected);
@@ -214,6 +227,7 @@ class TcpConnection : noncopyable,
     // 当channel关闭时，需要调用TcpConnection的关闭回调函数
     closeCallback_(guardThis);
   }
+
   void handleError() {
     LOG << "TcpConnection::handleError";
   }

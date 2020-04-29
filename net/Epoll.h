@@ -1,14 +1,16 @@
-# pragma once
+#pragma once
 
-# include <vector>
-# include <map>
-# include <sys/epoll.h>
-# include <memory>
-# include "Channel.h"
-# include "base/noncopyable.h"
+#include <sys/epoll.h>
+
+#include <map>
+#include <memory>
+#include <vector>
+
+#include "Channel.h"
+#include "base/noncopyable.h"
 
 class Epoll : noncopyable {
-public:
+ public:
   Epoll();
   ~Epoll();
   // 往epoll中添加关注的事件
@@ -20,11 +22,10 @@ public:
 
   std::vector<Channel*> poll();
 
-private:
+ private:
   static const int MAXFDS = 100000;
   int epollFd_;
   std::vector<epoll_event> events_;
   std::map<int, Channel*> fd2chan_;
   // TODO，定时器
-  
 };
