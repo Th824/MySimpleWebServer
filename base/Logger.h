@@ -46,3 +46,4 @@ class Logger {
 };
 
 #define LOG Logger(__FILE__, __LINE__).stream()
+// #define LOG std::cout

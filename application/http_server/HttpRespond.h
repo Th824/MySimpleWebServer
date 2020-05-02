@@ -22,10 +22,14 @@ class HttpRespond {
     headers[key] = value;
   }
 
+  void setVersion(const std::string& version) {
+    version_ = version;
+  }
+
   std::string generateRespond() {
     std::stringstream ss;
     ss << version_ << ' ' << statusCode_ << ' ' << statusMessage_ << crlf;
-    if (closeConnection_) {
+    if (closeConnection_ || version_ == "HTTP/1.0") {
       ss << "Connection: close" << crlf;
     } else {
       ss << "Connection: Keep-Alive" << crlf;

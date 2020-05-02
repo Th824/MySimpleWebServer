@@ -28,77 +28,23 @@ class TcpConnection : noncopyable,
                 std::string srcAddr, std::string dstAddr,
                 unsigned short srcPort, unsigned short dstPort);
 
-  ~TcpConnection() {}
+  ~TcpConnection() { LOG << "Destroy Tcp Connection"; }
 
   void connectionEstablished();
   void connectDestroyed();
-
   bool connected() const { return state_ == kConnected; }
 
   // 连接的主动关闭，需要自顶向下关闭，包括TcpConnection，Channel，socketFd，Epoll中事件的清除
-  void shutdown() {
-    // FIXME: use compare and swap
-    if (state_ == kConnected) {
-      setState(kDisconnecting);
-      loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, this));
-    }
-  }
-
-  void shutdownInLoop() {
-    loop_->assertInLoopThread();
-    // if (!channel_->isWriting()) {
-    //   // we are not writing
-    //   socket_->shutdownWrite();
-    // }
-  }
-
-  void setState(State state) { state_ = state; }
+  void shutdown();
+  void shutdownInLoop();
 
   // send的操作一般都是在回调函数中被调用的
-  void send(const void* message, int len) {
-    if (state_ == kConnected) {
-      if (loop_->isInLoopThread()) {
-        sendInLoop(message, len);
-      }
-    }
-  }
+  void send(const void* message, int len);
+  void send(const char* message, int len);
+  void send(const std::string& message);
+  void sendInLoop(const void* data, size_t len);
 
-  void send(const char* message, int len) {
-    send(static_cast<const void*>(message), len);
-  }
-
-  void send(const std::string& message) {
-    send(message.c_str(), message.length());
-  }
-
-  void sendInLoop(const void* data, size_t len) {
-    loop_->assertInLoopThread();
-    ssize_t nwrote = 0;
-    size_t remaining = len;
-    if (outputBuffer_.readableBytes() == 0) {
-      // 如果outputBuffer中没有需要写出去的（保证写入socket内核缓冲区的顺序），则可以直接调用write
-      nwrote = write(channel_->getFd(), data, len);
-      if (nwrote >= 0) {
-        remaining = len - nwrote;
-        // 如果全部写完且有定义写完的回调函数，则调用回调函数
-        if (remaining == 0 && writeCompleteCallback_) {
-          loop_->queueInLoop(
-              std::bind(writeCompleteCallback_, shared_from_this()));
-        }
-      } else {
-        nwrote = 0;
-        // 错误处理
-      }
-    }
-
-    assert(remaining <= len);
-    // 将没有成功发送出去的添加到outputBuffer中
-    if (remaining > 0) {
-      // size_t oldLen = outputBuffer_.readableBytes();
-      outputBuffer_.append(static_cast<const char*>(data) + nwrote, remaining);
-    }
-  }
-
+  void setState(State state) { state_ = state; }
   const std::string getState() const {
     switch (state_) {
       case kDisconnected:
@@ -134,7 +80,12 @@ class TcpConnection : noncopyable,
   EventLoop* loop() const { return loop_; }
   std::shared_ptr<HttpRequest> httpRequest() const { return httpRequest_; }
 
+  void setKeepAlive(const bool& isKeepAlive) { isKeepAlive_ = isKeepAlive; }
+  bool isKeepAlive() const { return isKeepAlive_; }
+
  private:
+  bool isKeepAlive_ = true;
+
   // 表示当前状态
   State state_;
 
@@ -163,6 +114,8 @@ class TcpConnection : noncopyable,
   // 对应当前Tcp连接正在处理的http请求
   std::shared_ptr<HttpRequest> httpRequest_;
 
+  int times = 0;
+
   // 以下四个函数都是channel的回调函数，通过设置这四个函数，在不同的事件发生
   // 的时候调用不同的回调函数
   // 从socket中读取数据
@@ -171,23 +124,31 @@ class TcpConnection : noncopyable,
     loop_->assertInLoopThread();
     int savedErrno = 0;
     // inputBuffer_从socket中读取，读到EAGAIN为止
-    ssize_t n = inputBuffer_.readFd(channel_->getFd(), &savedErrno);
-    if (n > 0) {
-      // 如果取到数据，调用向上应用层的回调
-      messageCallback_(shared_from_this(), &inputBuffer_);
-    } else if (n == 0) {
-      // 在对端发送了FIN后，read的返回值是0，此时调用关闭回调函数
-      handleClose();
-    } else {
-      errno = savedErrno;
-      LOG << "TcpConnection::handleRead";
-      handleError();
+    ssize_t n;
+
+    while (1) {
+      n = inputBuffer_.readFd(channel_->getFd(), &savedErrno);
+      if (n > 0) {
+        // 如果取到数据，调用向上应用层的回调
+        messageCallback_(shared_from_this(), &inputBuffer_);
+      } else if (n == 0) {
+        // 读到Fin
+        handleClose();
+        break;
+      } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        LOG << "Read Until Nothing to read";
+        break;
+      } else {
+        handleError();
+        break;
+      }
     }
   }
 
   // 将数据写到socket中，最可能发生阻塞的地方
   /*
-  由于tcp poll和edgetrigger的关系，在socket缓冲区可写时，如果有有EPOLLIN事件产生 epoll会使用tcp
+  由于tcp poll和edgetrigger的关系，在socket缓冲区可写时，如果有有EPOLLIN事件产生
+  epoll会使用tcp
   poll方法去检测socket中是否还有其他事件，此时，可以检测到EPOLLOUT事件
   因此，经常会同时返回EPOLLIN & EPOLLOUT事件。
   具体可参见 https://cloud.tencent.com/developer/article/1481046
@@ -198,6 +159,7 @@ class TcpConnection : noncopyable,
     if (!outputBuffer_.readable()) return;
     ssize_t n = write(channel_->getFd(), outputBuffer_.peek(),
                       outputBuffer_.readableBytes());
+    LOG << "Write " << n << " from user buffer to socket buffer";
     // 成功写入数据
     if (n > 0) {
       outputBuffer_.retrieve(n);
@@ -217,20 +179,20 @@ class TcpConnection : noncopyable,
   }
 
   void handleClose() {
-    // LOG << channel_->getFd() << " handle close";
+    LOG << channel_->getFd() << " handle close " << ++times << " times";
     loop_->assertInLoopThread();
     assert(state_ == kConnected || state_ == kDisconnecting);
     setState(kDisconnected);
     // 清空channel的所有监听事件
     TcpConnectionPtr guardThis(shared_from_this());
     connCallback_(guardThis);
+    connectDestroyed();
     // 当channel关闭时，需要调用TcpConnection的关闭回调函数
     closeCallback_(guardThis);
+    LOG << "Handle close successfully";
   }
 
-  void handleError() {
-    LOG << "TcpConnection::handleError";
-  }
+  void handleError() { LOG << "TcpConnection::handleError " << errno; }
 };
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;

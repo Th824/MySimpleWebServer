@@ -33,7 +33,7 @@ void Epoll::epoll_mod(Channel* request, int timeout) {
     event.data.fd = fd;
     event.events = request->getEvents();
     if (epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &event) < 0) {
-      fd2chan_[fd] = nullptr;
+      fd2chan_.erase(fd);
     }
   }
 }
@@ -46,7 +46,7 @@ void Epoll::epoll_del(Channel* request) {
   if (epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, &event) < 0) {
     // TODO 错误处理
   }
-  fd2chan_[fd] = nullptr;
+  fd2chan_.erase(fd);
 }
 
 // 返回活跃事件vector
@@ -57,9 +57,6 @@ std::vector<Channel*> Epoll::poll() {
     // loop），-1表示只有当有事件产生才返回，正数t表示在有事件产生或者t秒后返回
     int eventsNum =
         epoll_wait(epollFd_, &*events_.begin(), events_.size(), EPOLLWAIT_TIME);
-    if (eventsNum > 0) {
-      // LOG << eventsNum << " connection arrive!";
-    }
     if (eventsNum < 0) perror("epoll wait error");
     std::vector<Channel*> reqData;
     for (int i = 0; i < eventsNum; i++) {

@@ -101,7 +101,7 @@ class LogStream : noncopyable {
 
   LogStream& operator<<(const char* str) {
     if (str) {
-      // may happen bug
+      // TODO may happen bug, why?
       buffer_.append(std::string(str));
     } else {
       buffer_.append("(null)");

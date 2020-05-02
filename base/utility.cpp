@@ -45,8 +45,7 @@ int socket_bind_listen(int port) {
     close(listenFd);
     return -1;
   }
-  // LOG << "The socket has run in "
-  //     << "127.0.0.1:" << port;
+  LOG << "The socket has run in " << "127.0.0.1:" << port;
 
   // 上面操作都成功则返回该文件描述符供后续操作
   return listenFd;

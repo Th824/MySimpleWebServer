@@ -47,7 +47,7 @@ void EventLoop::loop() {
       it->handleEvents();
     }
     doPendingFunctors();
-    // 这里应该调用poller处理超时的Channel
+    // TODO 这里应该调用poller处理超时的Channel
     // poller_->handleExpired();
   }
   looping_ = false;

@@ -21,8 +21,10 @@ class TcpServer : noncopyable {
 
   void setConnCallback(const connCallback& cb);
   void setMessageCallback(const messageCallback& cb);
+  void setwriteCompleteCallback(const writeCompleteCallback& cb);
   void start();
 
+  // 作为关闭回调函数
   void removeConnection(const TcpConnectionPtr& conn);
   void removeConnectionInLoop(const TcpConnectionPtr& conn);
 
@@ -38,8 +40,9 @@ class TcpServer : noncopyable {
   int count_ = 0;
 
   // 设定TcpConnection的回调函数
-  connCallback connCallback_;
-  messageCallback messageCallback_;
+  connCallback connCallback_ = nullptr;
+  messageCallback messageCallback_ = nullptr;
+  writeCompleteCallback writeCompleteCallback_ = nullptr;
 
   // 服务器支持的最大连接数
   static const int MAXFDS = 100000;

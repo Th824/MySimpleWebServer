@@ -19,7 +19,8 @@ EventLoopThreadPool::~EventLoopThreadPool() {
 
 void EventLoopThreadPool::start() {
   // TODO
-  // baseLoop_->assertInLoopThread();
+  assert(!started_);
+  baseLoop_->assertInLoopThread();
   started_ = true;
   for (int i = 0; i < numThreads_; i++) {
     std::shared_ptr<EventLoopThread> t(new EventLoopThread());
@@ -30,7 +31,7 @@ void EventLoopThreadPool::start() {
 
 EventLoop* EventLoopThreadPool::getNextLoop() {
   // TODO
-  // baseLoop_->assertInLoopThread();
+  baseLoop_->assertInLoopThread();
   assert(started_);
   // 如果没有subReactor，则将其添加到mainReactor中
   EventLoop* loop = baseLoop_;

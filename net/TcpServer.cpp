@@ -56,6 +56,10 @@ void TcpServer::setMessageCallback(
   messageCallback_ = cb;
 }
 
+void TcpServer::setwriteCompleteCallback(const writeCompleteCallback& cb) {
+  writeCompleteCallback_ = cb;
+}
+
 void TcpServer::handleNewConn() {
   // 该函数是有新连接到来的回调函数
   // 当有新的socket连接到来的时候，调用该函数将新建的socket连接按照
@@ -85,13 +89,13 @@ void TcpServer::handleNewConn() {
     setSocketNodelay(acceptFd);
     // 从线程池中获取将该连接分配到的线程
     EventLoop* loop = pool_->getNextLoop();
-
+    
     // 根据acceptFd建立Channel，将Channel加入唯一的Epoll中，直接操作Channel
     // 在创建了一个关于acceptChannel后，将其添加到选定的subReactor线程中
     // 根据acceptFd建立TcpConnection，并将其保存在TcpServer的connections中
     std::string connectionName =
         std::string("connection") + std::to_string(count_++);
-    LOG << "acceptChannel " << acceptChannel_->getFd() << " handle read";
+    LOG << "AcceptChannel " << acceptChannel_->getFd() << " accept a new connection " << acceptFd;
     TcpConnectionPtr connection(new TcpConnection(
         loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());
@@ -100,7 +104,10 @@ void TcpServer::handleNewConn() {
     connection->setMessageCallback(messageCallback_);
     // 对新建的connection设置连接
     connection->setConnCallback(connCallback_);
-    // 设置关闭连接的回调函数，该函数定义在TcpServer中，主要包括
+    // 设置写完成的回调函数
+    connection->setWriteCompleteCallback(writeCompleteCallback_);
+    // 设置关闭连接的回调函数，该函数因为需要对TcpServer中的成员变量（connections）进行操作，定义在TcpServer中，同时
+    // 也在其中调用了TcpConnection的connectDestroyed函数
     connection->setCloseCallback(
         std::bind(&TcpServer::removeConnection, this, std::placeholders::_1));
     loop->runInLoop(
@@ -117,8 +124,10 @@ void TcpServer::removeConnection(const TcpConnectionPtr& conn) {
 
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
   loop_->assertInLoopThread();
+  // LOG << "connection use_count is " << conn.use_count(); 
   connections_.erase(conn->name());
-  EventLoop* loop = conn->loop();
+  LOG << "Erase connection";
+  // EventLoop* loop = conn->loop();
   // bind与lambda表达式的区别，将conn作为参数传入是否会改变share_ptr的引用计数
-  loop->queueInLoop(std::bind(&TcpConnection::connectDestroyed, conn));
+  // loop->queueInLoop(std::bind(&TcpConnection::connectDestroyed, conn));
 }

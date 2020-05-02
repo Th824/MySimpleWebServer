@@ -2,8 +2,8 @@
 
 #include <sys/epoll.h>
 
-#include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "Channel.h"
@@ -26,6 +26,6 @@ class Epoll : noncopyable {
   static const int MAXFDS = 100000;
   int epollFd_;
   std::vector<epoll_event> events_;
-  std::map<int, Channel*> fd2chan_;
+  std::unordered_map<int, Channel*> fd2chan_;
   // TODO，定时器
 };

@@ -112,12 +112,20 @@ class HttpRequest {
   }
 
   std::string version() const {
-    if (version_ == HTTP10) return "HTTP1.0";
-    if (version_ == HTTP11) return "HTTP1.1";
+    if (version_ == HTTP10) return "HTTP/1.0";
+    if (version_ == HTTP11) return "HTTP/1.1";
     return "NONE";
   }
 
   std::string path() const { return path_; }
+
+  bool isKeepAlive() {
+    if (header_.find("Connection") == header_.end() ||
+        header_["Connection"] == "close" || header_["Connection"] == "Close" ||
+        header_["connection"] == "close" || header_["connection"] == "Close")
+      return false;
+    return true;
+  }
 
   bool setMethod(const char* begin, const char* end) {
     std::string method(begin, end);

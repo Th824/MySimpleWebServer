@@ -32,7 +32,9 @@ class Channel : noncopyable {
  public:
   Channel(EventLoop *loop,
           int fd);  // Channel构造函数，应该在构造连接时由Connection类负责构造
-  ~Channel(){};  // 析构函数，应该由拥有该Channel的连接类来调用
+  ~Channel() {
+    LOG << "Delete Channel " << fd_;
+  };  // 析构函数，应该由拥有该Channel的连接类来调用
 
   int getFd() { return fd_; };
   void setFd(int fd) { fd_ = fd; };
@@ -68,32 +70,7 @@ class Channel : noncopyable {
   }
 
   // 根据发生的不同的数据类型执行不同的回调函数
-  void handleEvents() {
-    // LOG << fd_ << " handleEvents";
-    events_ = 0;
-    // 如果发生的事件是对端关闭且没有写入数据
-    if ((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN)) {
-      // LOG << fd_ << " close";
-      events_ = 0;
-      if (closeHandler_) closeHandler_();
-      return;
-    }
-    if (revents_ & EPOLLERR) {
-      // LOG << fd_ << " error happen";
-      if (errorHandler_) errorHandler_();
-      events_ = 0;
-      return;
-    }
-    if (revents_ & (EPOLLIN | EPOLLPRI | EPOLLRDHUP)) {
-      // LOG << fd_ << " can read";
-      handleRead();
-    }
-    if (revents_ & EPOLLOUT) {
-      // LOG << fd_ << " can write";
-      handleWrite();
-    }
-    handleConn();
-  }
+  void handleEvents();
   void handleRead();
   void handleWrite();
   void handleError(int fd, int err_num, std::string short_msg);

@@ -127,24 +127,14 @@ class Buffer {
       On success, the number of bytes read is returned (zero indicates end
       of file), and the file position is advanced by this number.
     */
-    ssize_t n = 0, sum = 0;
+    ssize_t n = 0;
     char buf[4096];
-    while ((n = read(fd, buf, sizeof(buf))) > 0) {
-      sum += n;
+    n = read(fd, buf, sizeof(buf));
+    if (n > 0) {
       append(buf, n);
     }
-    // 读取到了文件结尾，即对面发出关闭socket信号
-    if (n == 0) {
-      // assert(sum == 0);
-      return 0;
-    }
-    // 读取发生错误，返回-1，且判断errno，正常情况应该读取到发生EAGAIN error
-    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      assert(sum > 0);
-      return sum;
-    }
-    *savedErrno = errno;
     return n;
+    // 读取到了文件结尾，即对面发出关闭socket信号
   }
 
  private:

@@ -11,8 +11,8 @@ AsyncLogger Logger::AsyncLogger_("../Log/log");
 void Logger::once_init() { Logger::AsyncLogger_.start(); }
 
 void Logger::output(const std::string& msg) {
-  std::call_once(once_control, once_init);
-  AsyncLogger_.append(msg);
+  // std::call_once(once_control, once_init);
+  // AsyncLogger_.append(msg);
 }
 
 Logger::Impl::Impl(const std::string& fileName, int line)
@@ -33,10 +33,10 @@ void Logger::Impl::formatTime() {
 
 Logger::~Logger() {
   // 进行格式化
-  impl_.stream_ << " -- " << impl_.basename_ << ":" << impl_.line_ << '\n';
-  const LogStream::Buffer& buf(stream().buffer());
+  // impl_.stream_ << " -- " << impl_.basename_ << ":" << impl_.line_ << '\n';
+  // const LogStream::Buffer& buf(stream().buffer());
   // 将日志添加到后端缓冲区
-  output(buf.data());
-  // 将日志输出到控制台
-  if (outputToConsole) std::cout << buf.data();
+  // output(buf.data());
+  // // 将日志输出到控制台
+  // if (outputToConsole) std::cout << buf.data();
 }
