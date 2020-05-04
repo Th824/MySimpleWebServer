@@ -45,6 +45,7 @@ class HttpServer : noncopyable {
   bool dispatchRequest(
       const HttpRequest& req, HttpRespond& res,
       std::vector<std::pair<std::regex, HttpHandler>>& handlers);
+  bool helloTest(const HttpRequest& req, HttpRespond& res);
 
  private:
   std::string host_;

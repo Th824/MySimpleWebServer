@@ -28,7 +28,9 @@ class TcpConnection : noncopyable,
                 std::string srcAddr, std::string dstAddr,
                 unsigned short srcPort, unsigned short dstPort);
 
-  ~TcpConnection() { LOG << "Destroy Tcp Connection"; }
+  ~TcpConnection() { 
+    // LOG << "Destroy Tcp Connection";
+  }
 
   void connectionEstablished();
   void connectDestroyed();
@@ -136,7 +138,7 @@ class TcpConnection : noncopyable,
         handleClose();
         break;
       } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG << "Read Until Nothing to read";
+        // LOG << "Read Until Nothing to read";
         break;
       } else {
         handleError();
@@ -159,7 +161,7 @@ class TcpConnection : noncopyable,
     if (!outputBuffer_.readable()) return;
     ssize_t n = write(channel_->getFd(), outputBuffer_.peek(),
                       outputBuffer_.readableBytes());
-    LOG << "Write " << n << " from user buffer to socket buffer";
+    // LOG << "Write " << n << " from user buffer to socket buffer";
     // 成功写入数据
     if (n > 0) {
       outputBuffer_.retrieve(n);
@@ -179,7 +181,7 @@ class TcpConnection : noncopyable,
   }
 
   void handleClose() {
-    LOG << channel_->getFd() << " handle close " << ++times << " times";
+    // LOG << channel_->getFd() << " handle close " << ++times << " times";
     loop_->assertInLoopThread();
     assert(state_ == kConnected || state_ == kDisconnecting);
     setState(kDisconnected);
@@ -189,10 +191,12 @@ class TcpConnection : noncopyable,
     connectDestroyed();
     // 当channel关闭时，需要调用TcpConnection的关闭回调函数
     closeCallback_(guardThis);
-    LOG << "Handle close successfully";
+    // LOG << "Handle close successfully";
   }
 
-  void handleError() { LOG << "TcpConnection::handleError " << errno; }
+  void handleError() {
+    LOG << "TcpConnection::handleError " << errno;
+  }
 };
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;

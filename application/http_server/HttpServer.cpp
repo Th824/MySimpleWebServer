@@ -47,13 +47,6 @@ void HttpServer::setMessageCallback() {
               << this->port_ << httpRequest->path() << ' '
               << httpRespond.statusCode() << ' ' << httpRespond.statusMessage();
           conn->setKeepAlive(httpRequest->isKeepAlive());
-          // 异步发送
-          // EventLoop* loop = conn->loop();
-          // loop->queueInLoop(
-          //     std::bind(&TcpConnection::send, conn,
-          //               httpRespond.generateRespond(), std::placeholders::_1));
-          // std::string strRespond = httpRespond.generateRespond();
-          // loop->runInLoop(std::bind(&TcpConnection::send, conn, strRespond, strRespond.length()));
           conn->send(httpRespond.generateRespond());
           httpRequest->reset();
         }
@@ -133,16 +126,30 @@ void HttpServer::readFile(const std::string& path, std::string& body) {
 bool HttpServer::routingHandler(const HttpRequest& req, HttpRespond& res) {
   std::string path = req.path();
   std::string method = req.method();
+
   // 处理文件请求
   if (method == "GET") {
     return handleForFile(req, res);
   }
+
+  // if (method == "GET") {
+  //   return helloTest(req, res);
+  // }
 
   // 处理Get请求，有可能是请求文件
   if (method == "GET") {
     return dispatchRequest(req, res, getHandlers_);
   }
   return false;
+}
+
+bool HttpServer::helloTest(const HttpRequest& req, HttpRespond& res) {
+  res.setHeader("Content-Type", "html");
+  res.getBody() = "hello";
+  res.setstatusCode("200");
+  res.setStatusMessage("OK");
+  res.setVersion(req.version());
+  return true;
 }
 
 bool HttpServer::dispatchRequest(

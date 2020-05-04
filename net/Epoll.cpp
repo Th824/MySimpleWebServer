@@ -4,7 +4,7 @@
 #include <iostream>
 
 const int EVENTSNUM = 4096;
-const int EPOLLWAIT_TIME = 10000;
+const int EPOLLWAIT_TIME = 10;
 
 Epoll::Epoll() : epollFd_(epoll_create1(EPOLL_CLOEXEC)), events_(EVENTSNUM) {
   assert(epollFd_ > 0);

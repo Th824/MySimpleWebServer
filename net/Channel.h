@@ -33,7 +33,7 @@ class Channel : noncopyable {
   Channel(EventLoop *loop,
           int fd);  // Channel构造函数，应该在构造连接时由Connection类负责构造
   ~Channel() {
-    LOG << "Delete Channel " << fd_;
+    // LOG << "Delete Channel " << fd_;
   };  // 析构函数，应该由拥有该Channel的连接类来调用
 
   int getFd() { return fd_; };

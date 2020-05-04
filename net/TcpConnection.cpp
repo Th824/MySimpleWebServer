@@ -63,11 +63,10 @@ void TcpConnection::shutdown() {
 
 void TcpConnection::shutdownInLoop() {
   loop_->assertInLoopThread();
-  LOG << "Shut down socket " << fd_;
+  // LOG << "Shut down socket " << fd_;
   if (::shutdown(fd_, SHUT_WR) < 0) {
     LOG << "Shut down Tcp Connection error";
   }
-  // sleep(5);
 }
 
 // send的操作一般都是在回调函数中被调用的
@@ -109,7 +108,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len) {
 
   assert(remaining <= len);
   if (remaining == 0) {
-    LOG << "Send to peer successfully";
+    // LOG << "Send to peer successfully";
   }
   // 将没有成功发送出去的添加到outputBuffer中
   if (remaining > 0) {

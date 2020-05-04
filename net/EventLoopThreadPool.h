@@ -8,7 +8,7 @@
 
 class EventLoopThreadPool : noncopyable {
 public:
-  EventLoopThreadPool(EventLoop* baseLoop, int numThreads = 10);
+  EventLoopThreadPool(EventLoop* baseLoop, int numThreads = 4);
   ~EventLoopThreadPool();
   EventLoop* getNextLoop();
   void start();

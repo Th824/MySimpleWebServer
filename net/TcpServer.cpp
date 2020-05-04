@@ -95,7 +95,7 @@ void TcpServer::handleNewConn() {
     // 根据acceptFd建立TcpConnection，并将其保存在TcpServer的connections中
     std::string connectionName =
         std::string("connection") + std::to_string(count_++);
-    LOG << "AcceptChannel " << acceptChannel_->getFd() << " accept a new connection " << acceptFd;
+    // LOG << "AcceptChannel " << acceptChannel_->getFd() << " accept a new connection " << acceptFd;
     TcpConnectionPtr connection(new TcpConnection(
         loop, connectionName, acceptFd, srcAddr_, dstAddr, srcPort_, dstPort));
     assert(connections_.find(connectionName) == connections_.end());
@@ -126,7 +126,7 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
   loop_->assertInLoopThread();
   // LOG << "connection use_count is " << conn.use_count(); 
   connections_.erase(conn->name());
-  LOG << "Erase connection";
+  // LOG << "Erase connection";
   // EventLoop* loop = conn->loop();
   // bind与lambda表达式的区别，将conn作为参数传入是否会改变share_ptr的引用计数
   // loop->queueInLoop(std::bind(&TcpConnection::connectDestroyed, conn));

@@ -11,7 +11,7 @@
 int createEventfd() {
   int evtfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
   if (evtfd < 0) {
-    LOG << "Failed to create event fd";
+    // LOG << "Failed to create event fd";
     abort();
   }
   return evtfd;

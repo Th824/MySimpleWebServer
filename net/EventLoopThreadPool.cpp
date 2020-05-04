@@ -13,8 +13,7 @@ EventLoopThreadPool::EventLoopThreadPool(EventLoop* baseLoop, int numThreads)
 
 EventLoopThreadPool::~EventLoopThreadPool() {
   // TODO join所有的线程，删除对应的EventLoop
-  
-  LOG << "delete thread pool";
+  // LOG << "delete thread pool";
 }
 
 void EventLoopThreadPool::start() {
