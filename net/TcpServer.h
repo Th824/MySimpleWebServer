@@ -17,7 +17,7 @@ class TcpServer : noncopyable {
   // 这个是针对新连接的回调函数
   void handleNewConn();
   // 针对TcpConnection的可读回调函数
-  void handleMessage();
+  // void handleMessage();
 
   void setConnCallback(const connCallback& cb);
   void setMessageCallback(const messageCallback& cb);

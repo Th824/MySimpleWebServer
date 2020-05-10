@@ -8,58 +8,36 @@ class HttpRespond {
   HttpRespond() {}
   ~HttpRespond() {}
 
-  void setstatusCode(const std::string& statusCode) {
-    statusCode_ = statusCode;
+  void setstatusCode(const unsigned short& statusCode);
+  void setBody(const std::string& body);
+  void setHeader(const std::string& key, const std::string& value);
+  void setVersion(const std::string& version);
+  void setRequestFilePath(const std::string& requestFilePath) {
+    requestFilePath_ = requestFilePath;
   }
 
-  void setStatusMessage(const std::string& message) {
-    statusMessage_ = message;
-  }
+  std::string generateRespond();
 
-  void setBody(const std::string& body) { body_ = body; }
-
-  void setHeader(const std::string& key, const std::string& value) {
-    headers[key] = value;
-  }
-
-  void setVersion(const std::string& version) {
-    version_ = version;
-  }
-
-  std::string generateRespond() {
-    std::stringstream ss;
-    ss << version_ << ' ' << statusCode_ << ' ' << statusMessage_ << crlf;
-    if (closeConnection_ || version_ == "HTTP/1.0") {
-      ss << "Connection: close" << crlf;
-    } else {
-      ss << "Connection: Keep-Alive" << crlf;
-    }
-
-    for (const auto& kv : headers) {
-      ss << kv.first << ": " << kv.second << crlf;
-    }
-    ss << crlf;
-    ss << body_;
-    return ss.str();
-  }
-
+  const std::string& getRequestFilePath() const { return requestFilePath_; }
   std::string& getBody() { return body_; }
-
-  std::string statusCode() const { return statusCode_; }
+  unsigned short statusCode() const { return statusCode_; }
   std::string statusMessage() const { return statusMessage_; }
 
-  friend std::ostream& operator<<(std::ostream& output,
-                                  const HttpRespond& res) {
-    output << res.statusCode_ << ' ' << res.statusMessage_;
-    return output;
-  }
+  static const char* statusToMessage(unsigned short status);
+
+  // friend std::ostream& operator<<(std::ostream& output,
+  //                                 const HttpRespond& res) {
+  //   output << res.statusCode_ << ' ' << res.statusMessage_;
+  //   return output;
+  // }
 
  private:
   std::string crlf = "\r\n";
   std::string version_ = "HTTP/1.1";
-  std::string statusCode_;
+  unsigned short statusCode_ = 200;
   std::string statusMessage_ = "OK";
   std::unordered_map<std::string, std::string> headers;
   bool closeConnection_ = false;
+  std::string requestFilePath_;
   std::string body_;
 };

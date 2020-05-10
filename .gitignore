@@ -23,6 +23,7 @@ build
 
 bin
 lib
+static
 
 # ignore Log
 Log

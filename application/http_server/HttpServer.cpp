@@ -15,13 +15,41 @@ HttpServer& HttpServer::Get(const std::string& pattern,
   return *this;
 }
 
+HttpServer& HttpServer::Post(const std::string& pattern,
+                             const HttpHandler& httpHandler) {
+  postHandlers_.emplace_back(std::regex(pattern), httpHandler);
+  return *this;
+}
+
+HttpServer& HttpServer::Put(const std::string& pattern,
+                             const HttpHandler& httpHandler) {
+  putHandlers_.emplace_back(std::regex(pattern), httpHandler);
+  return *this;
+}
+
+HttpServer& HttpServer::Patch(const std::string& pattern,
+                             const HttpHandler& httpHandler) {
+  patchHandlers_.emplace_back(std::regex(pattern), httpHandler);
+  return *this;
+}
+
+HttpServer& HttpServer::Delete(const std::string& pattern,
+                             const HttpHandler& httpHandler) {
+  deleteHandlers_.emplace_back(std::regex(pattern), httpHandler);
+  return *this;
+}
+
+HttpServer& HttpServer::Option(const std::string& pattern,
+                             const HttpHandler& httpHandler) {
+  optionHandlers_.emplace_back(std::regex(pattern), httpHandler);
+  return *this;
+}
+
 // 设置URL相关请求对应的锚点
 // 例如针对file文件夹中example文件的请求file/example，我们可以将file前缀锚定到服务器的static文件夹，而后file请求都会锚定到static文件夹
 bool HttpServer::setMountPoint(const std::string& mp, const std::string& dir) {
-  // 将路径拼成绝对路径
-  std::string fullPath = staticFilePathPrefix_ + dir;
   // 判断dir文件夹是否存在
-  if (isDir(fullPath)) {
+  if (isDir(dir)) {
     if (!mp.empty() && mp[0] == '/') {
       mountToDir_.emplace_back(mp, dir);
       return true;
@@ -42,7 +70,7 @@ void HttpServer::setMessageCallback() {
           // 在获取到了完整的请求后，调用相关的路由函数，路由函数中会修改传入的respond
           HttpRespond httpRespond;
           // 根据已注册的路由方法进行路由
-          this->routingHandler(*httpRequest, httpRespond);
+          this->routing(*httpRequest, httpRespond);
           LOG << httpRequest->method() << ' ' << this->host_ << ':'
               << this->port_ << httpRequest->path() << ' '
               << httpRespond.statusCode() << ' ' << httpRespond.statusMessage();
@@ -71,16 +99,18 @@ void HttpServer::setWriteCompleteCallback() {
   });
 }
 
-bool HttpServer::handleForFile(const HttpRequest& req, HttpRespond& res) {
+// 对服务器文件的请求
+bool HttpServer::handleForFile(const HttpRequest& req, HttpRespond& res,
+                               bool isHead) {
   std::string path = req.path();
-  for (auto const& kv : mountToDir_) {
+  for (const auto& kv : mountToDir_) {
     const std::string& mount = kv.first;
     const std::string& dir = kv.second;
     // 前缀匹配，如果找到，返回0
     if (!path.find(mount)) {
       std::string sub_path = path.substr(mount.size());
       if (isValidPath(sub_path)) {
-        auto fullPath = staticFilePathPrefix_ + dir + "/" + sub_path;
+        auto fullPath = dir + "/" + sub_path;
         if (fullPath.back() == '/') {
           fullPath += "index.html";
         }
@@ -94,22 +124,18 @@ bool HttpServer::handleForFile(const HttpRequest& req, HttpRespond& res) {
             res.setHeader("Content-Length",
                           std::to_string(res.getBody().length()));
           }
-          res.setVersion(req.version());
-          res.setstatusCode("200");
-          res.setStatusMessage("OK");
+          // res.setVersion(req.version());
+          res.setstatusCode(200);
+          // res.setStatusMessage("OK");
+          // TODO，提供注册文件请求回调的接口
+          if (!isHead && fileRequestHandler_) {
+            fileRequestHandler_(req, res);
+          }
           return true;
-        } else {
-          LOG << "Not exist such file";
         }
-      } else {
-        LOG << "Invalid path";
       }
-    } else {
-      LOG << "Not mount such dir";
     }
   }
-  res.setstatusCode("404");
-  res.setStatusMessage("Not Found");
   return false;
 }
 
@@ -123,33 +149,30 @@ void HttpServer::readFile(const std::string& path, std::string& body) {
   fs.read(&body[0], size);
 }
 
-bool HttpServer::routingHandler(const HttpRequest& req, HttpRespond& res) {
-  std::string path = req.path();
-  std::string method = req.method();
-
-  // 处理文件请求
-  if (method == "GET") {
-    return handleForFile(req, res);
+bool HttpServer::routing(const HttpRequest& req, HttpRespond& res) {
+  bool isHeadRequest = (req.method() == "HEAD");
+  // 判断是否是文件请求
+  if ((req.method() == "GET" || isHeadRequest) &&
+      handleForFile(req, res, isHeadRequest)) {
+    return true;
   }
 
-  // if (method == "GET") {
-  //   return helloTest(req, res);
-  // }
-
-  // 处理Get请求，有可能是请求文件
-  if (method == "GET") {
+  if (req.method() == "GET" || req.method() == "HEAD") {
     return dispatchRequest(req, res, getHandlers_);
+  } else if (req.method() == "POST") {
+    return dispatchRequest(req, res, postHandlers_);
+  } else if (req.method() == "PUT") {
+    return dispatchRequest(req, res, putHandlers_);
+  } else if (req.method() == "PATCH") {
+    return dispatchRequest(req, res, patchHandlers_);
+  } else if (req.method() == "DELETE") {
+    return dispatchRequest(req, res, deleteHandlers_);
+  } else if (req.method() == "OPTION") {
+    return dispatchRequest(req, res, optionHandlers_);
   }
-  return false;
-}
 
-bool HttpServer::helloTest(const HttpRequest& req, HttpRespond& res) {
-  res.setHeader("Content-Type", "html");
-  res.getBody() = "hello";
-  res.setstatusCode("200");
-  res.setStatusMessage("OK");
-  res.setVersion(req.version());
-  return true;
+  res.setstatusCode(400);
+  return false;
 }
 
 bool HttpServer::dispatchRequest(
@@ -170,10 +193,10 @@ bool HttpServer::dispatchRequest(
     }
   } catch (const std::exception& ex) {
     // 处理出错
-    res.setstatusCode("500");
+    res.setstatusCode(500);
     res.setHeader("EXCEPTION_WHAT", ex.what());
   } catch (...) {
-    res.setstatusCode("500");
+    res.setstatusCode(500);
     res.setHeader("EXCEPTION_WHAT", "UNKNOWN");
   }
   return false;
