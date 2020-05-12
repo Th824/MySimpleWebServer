@@ -26,12 +26,79 @@ bool HttpRequest::parseRequestLine(const char* begin, const char* end) {
   return succeed;
 }
 
+// 传入的是Content-type键值对的值部分
+bool HttpRequest::parseContentType(const char* begin, const char* end) {
+  const char* semicolon;
+  while (*begin == ' ') begin++;
+  while ((semicolon = std::find(begin, end, ';')) != end) {
+    const char* equalSign = std::find(begin, semicolon, '=');
+    if (equalSign == semicolon) {
+      type_ = std::string(begin, semicolon - 1);
+    } else {
+      std::string key(begin, equalSign - 1);
+      std::string value(equalSign + 1, semicolon - 1);
+      if (key == "charset") {
+        charset_ = value;
+      } else if (key == "boundary") {
+        boundary_ = value;
+      } else {
+        LOG << "Unexpected Content type";
+        return false;
+      }
+    }
+    begin = semicolon + 1;
+    while (*begin == ' ') begin++;
+  }
+  return true;
+}
+
+bool HttpRequest::parseRange(const std::string& s) {
+  // 该正则表达式用来获取range中的第一个range区间
+  static auto reFirstRange = std::regex(R"(bytes=(\d*-\d*(?:,\s*\d*-\d*)*))");
+  std::smatch m;
+  if (std::regex_match(s, m, reFirstRange)) {
+    auto pos = static_cast<size_t>(m.position(1));
+    auto len = static_cast<size_t>(m.length(1));
+    bool all_valid_ranges = true;
+    split(&s[pos], &s[pos + len], ',', [&](const char* begin, const char* end) {
+      if (all_valid_ranges) return;
+      static auto re_another_range = std::regex(R"(\s*(\d*)-(\d*))");
+      std::cmatch cm;
+      if (std::regex_match(begin, end, cm, re_another_range)) {
+        ssize_t first = -1;
+        if (!cm.str(1).empty()) {
+          first = static_cast<ssize_t>(std::stoll(cm.str(1)));
+        }
+
+        ssize_t last = -1;
+        if (!cm.str(2).empty()) {
+          last = static_cast<ssize_t>(std::stoll(cm.str(2)));
+        }
+
+        if (first != -1 && last != -1 && first > last) {
+          all_valid_ranges = false;
+          return;
+        }
+        ranges_.emplace_back(first, last);
+      }
+    });
+    return all_valid_ranges;
+  }
+  return false;
+}
+
 bool HttpRequest::parseRequestHeader(const char* begin, const char* end) {
   bool succeed = false;
   const char* colon = std::find(begin, end, ':');
   if (colon != end) {
     std::string key(begin, colon);
-    header_[key] = std::string(colon + 1, end);
+    std::string value(colon + 1, end);
+    if (key == "Content-type") {
+      parseContentType(colon + 1, end);
+    } else if (key == "Range") {
+      parseRange(value);
+    }
+    header_[key] = value;
     succeed = true;
   }
   return succeed;
@@ -65,6 +132,7 @@ bool HttpRequest::parseRequest(Buffer* buf) {
     }
   }
 
+  // 解析请求体，有可能是multipart类型
   if (state_ == RequestBody) {
     if (header_.find("Content-Length") != header_.end()) {
       int contentLength = std::stoi(header_["Content-Length"]);
@@ -103,9 +171,7 @@ const std::string HttpRequest::version() const {
   return "NONE";
 }
 
-const std::string HttpRequest::body() const {
-  return body_;
-}
+const std::string HttpRequest::body() const { return body_; }
 
 bool HttpRequest::isKeepAlive() {
   if (header_.find("Connection") == header_.end() ||

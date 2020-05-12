@@ -29,3 +29,6 @@ bool isValidPath(const std::string &path);
 
 std::string fileExtension(const std::string &path);
 std::string findContentType(const std::string& path);
+
+template <class Fn>
+void split(const char* begin, const char* end, char delemiter, Fn fn);

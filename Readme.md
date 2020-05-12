@@ -13,27 +13,19 @@ make
 
 ## 简介
 
-本项目参考了muduo库，并基于C++11重新编写了一个HTTP服务器，支持HTTP1.0和HTTP1.1，预期在其上搭建一个个人博客和个人视频服务网站
+本项目参考了muduo库，基于多Reactor模型实现了一个小型网络库，该网络库主要面对的是使用Tcp连接进行高并发访问的场景，例如，可以作为一个Http静态服务器。在该网络库的基础上，可以自己定义应用层相关的回调函数来实现不同的应用层需求，例如，通过自定义http请求的解析和响应，就可以实现http服务器。
 
-## 回调链的整理
-因为对很多类进行了分层和封装，导致回调函数的注册和调用不是很明朗。
-### 原始回调
-epoll是由操作系统提供的IO多路复用技术，其主要的功能就是在内核中注册一个关于fd的事件，在发生相关事件时，内核返回发生事件的fd，由用户根据发生的事件的类型执行不同的处理。
-### 回调封装
-上面提到对发生不同类型的事件执行不同的处理，这里我们如果对不同的处理函数进行封装，那么就是所谓的回调函数，例如发生了可读事件时调用readCallback，发生可写事件时调用writeCallback。
-### 使用Channel
-使用Channel对监听的fd和事件回调函数进行封装，因为每一个fd上注册的监听事件和回调函数不尽相同，所以使用一个Channel进行封装，后续的操作也是执行注册在Channel对应的fd的回调函数，这里说明一下，这些回调函数的调用是在loop中有事件产生返回时由loop线程进行调用的。
-### 使用TcpConnection
-TcpConnection是针对Channel的更加上层的封装，因为Channel中支持的事件其实很少（只是内核支持的Epoll事件），一般而言我们只使用可读和可写两种事件，但是，我们不同的协议要求支持的事件更多，如有些应用需要在连接断开时记录日志，有些应用需要在接收到完整信息后进行解析等，原生的可读可写事件对这些的支持不够。因此，我们转而使用TcpConnection进行封装，TcpConnection中定义了对于Channel的回调函数，同时，提供给上层应用注册回调函数接口，这些提供给上层的回调函数其实也会在Channel的回调函数中调用，从而实现了一个对于用户更加友好丰富的回调函数接口。
+## 主要使用的技术
+* Linux epoll 多路复用
+* C++11 多线程编程
+* C++11 智能指针
 
 ## 主要类介绍
 1. TcpServer：顾名思义就是基于Tcp的服务器，负责管理Tcp连接（包装为TcpConnection类），包括连接的创建，销毁，注册TcpConnection的相关回调函数。
 2. TcpConnection：封装一次Tcp连接的类，包括四个状态（连接中，已连接，断开中，已断开）。支持设置建立连接回调函数，写入完成回调函数，接收消息回调函数，关闭连接回调函数。
-
-
-## Feature
-
-
+3. Epoll：对epoll调用的封装，提供更易使用的接口。
+4. Channel：对句柄和注册事件及其回调函数的封装。
+5. EventLoop：Reactor模式中的loop循环，启动后始终在循环中，等待epoll事件通知，在事件产生后，调用相关回调函数后继续回到loop循环。
 
 ## TODO
 - [x] 定时器
@@ -45,7 +37,7 @@ TcpConnection是针对Channel的更加上层的封装，因为Channel中支持�
     - [ ] 内存使用，泄漏
     - [ ] 请求成功数量（超时和错误）
 - [ ] ~~Http1.1完整协议支持~~（特性太多，选择性支持）
-  - [ ] GET方法
+  - [x] GET方法
   - [ ] POST方法
   - [ ] 头部选项
     - [ ] Cookie
@@ -58,15 +50,15 @@ TcpConnection是针对Channel的更加上层的封装，因为Channel中支持�
 - [ ] 线程池调度策略的支持
 
 
-## 项目目录结构
-
-```
-
-```
-
 ## 面试问题
 * 异步日志前端写入是否要加锁，可否使用无锁编程
 * 支持的最大并发数，瓶颈在哪里
+* epoll两种触发模式的区别
+* epoll与poll，select的不同
 
 ## 参考链接
-* 
+* https://github.com/chenshuo/muduo
+* https://github.com/yedf/handy
+* https://github.com/linyacool/WebServer
+* https://github.com/EZLippi/WebBench
+* https://github.com/yhirose/cpp-httplib

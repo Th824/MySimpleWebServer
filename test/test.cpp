@@ -8,17 +8,14 @@
 using namespace std;
 
 int main() {
-  // std::regex re(R"(([^:]+):[\t ]*(.+))");
-  // std::cmatch m;
-  // std::string str(
-  //     "Content-Type: multipart/form-data; boundary=---------------------------974767299852498929531610575");
-  // const char* begin = &str[0], *end = &str[str.length() - 1];
-  // if (std::regex_match(begin, end, m, re)) {
-  //   auto key = std::string(m[1]);
-  //   auto val = std::string(m[2]);
-  //   std::cout << key << ' ' << val << std::endl;
-  // }
-  char buffer[1000];
-  getcwd(buffer, 1000);
-  cout << string(buffer) << endl;
+  std::string s = "bytes=0-50, 100-150";
+  auto re_first_range = std::regex(R"(bytes=(\d*-\d*(?:,\s*\d*-\d*)*))");
+  std::smatch m;
+  if (std::regex_match(s, m, re_first_range)) {
+    auto pos = static_cast<size_t>(m.position(1));
+    auto len = static_cast<size_t>(m.length(1));
+    cout << pos << ' ' << len;
+  } else {
+    cout << "No match" << endl;
+  }
 }

@@ -139,6 +139,10 @@ bool HttpServer::handleForFile(const HttpRequest& req, HttpRespond& res,
   return false;
 }
 
+bool HttpServer::handleForRangeRequest(const HttpRequest& req, HttpRespond& res) {
+  
+}
+
 // TODO 暂时默认不会出错
 void HttpServer::readFile(const std::string& path, std::string& body) {
   std::ifstream fs(path, std::ios_base::binary);

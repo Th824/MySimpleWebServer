@@ -293,3 +293,21 @@ std::string findContentType(const std::string &path) {
   }
   return "";
 }
+
+template <class Fn>
+void split(const char *begin, const char *end, char delemiter, Fn fn) {
+  int i = 0;
+  int start = 0;
+
+  while (end ? (begin + i != end) : (begin[i] != '\0')) {
+    if (begin[i] == delemiter) {
+      fn(&begin[start], &begin[i]);
+      start = i + 1;
+    }
+    i++;
+  }
+
+  if (i) {
+    fn(&begin[start], &begin[i]);
+  }
+}

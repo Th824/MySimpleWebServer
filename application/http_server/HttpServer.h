@@ -42,7 +42,6 @@ class HttpServer : noncopyable {
   bool setMountPoint(const std::string& mp, const std::string& dir);
   bool removeMountPoint(const std::string& mp);
 
-  
   // TODO 提供定时回调接口，方便用户直接注册定时回调函数
 
   void setMessageCallback();
@@ -50,10 +49,12 @@ class HttpServer : noncopyable {
   void setWriteCompleteCallback();
   void setFileRequestHandler(HttpHandler fileRequestHandler);
 
+  bool routing(const HttpRequest& req, HttpRespond& res);
+
   bool handleForFile(const HttpRequest& req, HttpRespond& res, bool isHead);
+  bool handleForRangeRequest(const HttpRequest& req, HttpRespond& res);
   // TODO 暂时默认不会出错
   void readFile(const std::string& path, std::string& body);
-  bool routing(const HttpRequest& req, HttpRespond& res);
   bool dispatchRequest(
       const HttpRequest& req, HttpRespond& res,
       std::vector<std::pair<std::regex, HttpHandler>>& handlers);
